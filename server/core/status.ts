@@ -35,8 +35,8 @@ import { type AlertTiming, createPushService, defaultStateDir } from "../push.ts
 import { PodMutes } from "../rod-pod-mutes.ts";
 import { alertText } from "../rod-alert-text.ts";
 import { startDeskPresence } from "../rod-desk.ts";
-import { paneConversation } from "../conversation.ts";
-import { readPrompt } from "../prompt.ts";
+import { localReaders } from "../rod-readers.ts";
+import { recordStatus } from "../rod-summary.ts";
 import { SessionPlans } from "../session-plan.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { UsageLoginService } from "../usage-login.ts";
@@ -95,10 +95,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
       return paneTitle(await paneGet(paneId));
     },
     // RoD fork: the alert quotes what the agent asks or last said (server/rod-alert-text.ts)
-    lookupText: (paneId, status) => alertText(paneId, status, {
-      prompt: async (id) => (await readPrompt(id, options.codexHome)).prompt,
-      turns: async (id) => (await paneConversation(id, options.codexHome, { prompts: 1 }, undefined, options.opencodeDb)).turns,
-    }),
+    lookupText: (paneId, status) => alertText(paneId, status, localReaders(options.codexHome, options.opencodeDb)),
     // each pane alert that reached a device, for the daily active message's usage
     onAlertDelivered: () => options.telemetry?.tally("alerts_delivered"),
   });
@@ -263,6 +260,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     await gjc.refresh(snapshot.panes);
     const named = gjc.apply(omo.apply(snapshot));
     podMutes.observe(named);
+    for (const pane of named.panes) recordStatus(pane.pane_id, pane.agent_status);
     const ids = new Set(named.panes.map((pane) => pane.pane_id));
     for (const paneId of [...agentNow.keys()]) {
       if (ids.has(paneId) || (agentRead.get(paneId) ?? 0) > read) continue;
@@ -431,6 +429,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
 
   /** A status herdr reported for a pane, or one read back from a snapshot around a gap (`replay`). */
   function onStatus(paneId: string, read: AgentStatus, agent: string | null, replay?: { before: AgentStatus; agent: string | null }): void {
+    recordStatus(paneId, read); // RoD fork: the summary line's "since" (server/rod-summary.ts)
     if (agent !== "opencode" && (!replay || agent || read !== "unknown")) {
       options.openCodeState?.forget(paneId);
       // Snapshot replays release in onReconciled, with the snapshot's verification checkpoint.

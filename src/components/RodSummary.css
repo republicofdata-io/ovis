@@ -1,0 +1,38 @@
+/* RoD fork: the summary line over a pane's terminal (RodSummary.tsx), a banner of the stack */
+.rod-summary {
+  max-width: 100%;
+  min-width: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: left;
+}
+
+.rod-summary-state {
+  flex: none;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.rod-summary[data-status="blocked"] .rod-summary-state {
+  color: var(--status-blocked);
+}
+
+.rod-summary-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rod-summary.is-open {
+  border-radius: var(--radius-md);
+  align-items: flex-start;
+  padding-block: var(--space-1);
+}
+
+.rod-summary.is-open .rod-summary-text {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
