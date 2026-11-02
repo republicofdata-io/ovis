@@ -56,6 +56,8 @@ import type { CLIProxyRoutes } from "./cliproxy-routes.ts";
 import type { UsageLoginService } from "./usage-login.ts";
 import type { UsageService } from "./usage.ts";
 import type { VoiceService } from "./voice.ts";
+import { localReaders } from "./rod-readers.ts";
+import { handleRodSummaryRequest } from "./rod-summary.ts";
 
 type PortalStartup = { ok: true } | { ok: false; error: unknown };
 
@@ -363,6 +365,8 @@ export async function handleRequest(request: Request, ctx: ServerContext): Promi
   if (pathname === "/api/telemetry") { setRequestRoute(pathname); return handleTelemetryRequest(request, options.telemetry); }
   // what every browser of this server shares; a watching device reads it and cannot change it (above)
   if (pathname === "/api/preferences") { setRequestRoute(pathname); return handlePreferencesRequest(request, preferences); }
+  // RoD fork: the summary line above a pane's terminal (server/rod-summary.ts)
+  if (pathname === "/api/rod/summary") { setRequestRoute(pathname); return handleRodSummaryRequest(request, url, localReaders(options.codexHome, options.opencodeDb)); }
   // the finishes read in some browser of this server; a watching device reads them and cannot add to them (above)
   if (pathname === "/api/seen") { setRequestRoute(pathname); return handleSeenRequest(request, seen); }
 

@@ -70,6 +70,7 @@ import { usePeekReturn } from "../lib/usePeekReturn.ts";
 import { useChatCallbacks } from "../lib/useChatCallbacks.ts";
 import { useTypedKeys } from "../lib/useTypedKeys.ts";
 import { mountRole, paneObserving } from "../lib/paneObserving.ts";
+import { RodSummary } from "./RodSummary.tsx";
 
 /** How long the key bar says where Paste goes while the input line is put away: two lines to read. */
 const PASTE_GUIDANCE_MS = 6000;
@@ -1043,6 +1044,8 @@ export function PaneTerminal({
         </div>
       )}
       <div className="terminal-banners">
+        {/* RoD fork: the summary line (RodSummary.tsx), over the terminal and the chat */}
+        {paneId !== null && machineId === "local" && <RodSummary paneId={paneId} status={agentStatus} />}
         {paneId !== null && held && !noticesDocked && (
           <div className="terminal-banner terminal-banner-warning" role="status">
             <span>{t("Another app has this pane open. It connects here as soon as that app lets go.")}</span>

@@ -1256,6 +1256,8 @@ async function route(url: URL, method: string, init: RequestInit | undefined, in
   // Connection breadcrumbs stay inside the fictional demo; never send them to a real endpoint.
   if (path === "/api/connection-diagnostics") return new Response(null, { status: 204 });
   // the demo is one browser: a finish read here is kept in its own storage, with no other browser to tell
+  // RoD fork: the summary line over a terminal (server/rod-summary.ts), told as a demo agent at work
+  if (path === "/api/rod/summary") return json({ status: "working", since: Date.now() - 4 * 60_000, headline: "Running the checkout tests before the review" }, 200, { "cache-control": "no-store" });
   if (path === "/api/seen") return method === "POST" ? new Response(null, { status: 204 }) : json({ finishes: [] }, 200, { "cache-control": "no-store" });
   if (path === "/api/preferences") {
     if (method === "GET") return json(preferences, 200, { "cache-control": "no-store" });
