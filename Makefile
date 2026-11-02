@@ -2,7 +2,7 @@
 # See rod/README.md. Run bare `make` for the menu.
 
 .DEFAULT_GOAL := help
-.PHONY: help status sync sync-finish install check prod-ovis
+.PHONY: help status sync sync-finish install check hooks public-check prod-ovis
 
 help: ## Show this menu
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-12s %s\n", $$1, $$2}'
@@ -26,6 +26,12 @@ install: ## Reinstall Ovis on this Mac from the fork (REF=branch to try a pull r
 
 check: ## Type-check, build, run the convention tests and the tests of our changes
 	@sh rod/check.sh
+
+hooks: ## Turn on the pre-push check of this clone (private names, secrets)
+	@git config core.hooksPath rod/hooks && echo "pre-push check on (rod/hooks/pre-push)"
+
+public-check: ## Check our commits not yet on origin/rod for private names and secrets
+	@sh rod/public-check.sh
 
 prod-ovis: ## Open this Mac's Ovis address in the browser
 	@open "https://$$(tailscale status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))')"
