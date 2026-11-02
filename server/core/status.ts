@@ -33,6 +33,9 @@ import type { PreferenceStore } from "../preferences.ts";
 import { onChatSubmitted, promptWaitEnded, type OpenCodePromptState } from "../prompt.ts";
 import { type AlertTiming, createPushService, defaultStateDir } from "../push.ts";
 import { PodMutes } from "../rod-pod-mutes.ts";
+import { alertText } from "../rod-alert-text.ts";
+import { paneConversation } from "../conversation.ts";
+import { readPrompt } from "../prompt.ts";
 import { SessionPlans } from "../session-plan.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { UsageLoginService } from "../usage-login.ts";
@@ -88,6 +91,11 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     lookupTitle: async (paneId) => {
       return paneTitle(await paneGet(paneId));
     },
+    // RoD fork: the alert quotes what the agent asks or last said (server/rod-alert-text.ts)
+    lookupText: (paneId, status) => alertText(paneId, status, {
+      prompt: async (id) => (await readPrompt(id, options.codexHome)).prompt,
+      turns: async (id) => (await paneConversation(id, options.codexHome, { prompts: 1 }, undefined, options.opencodeDb)).turns,
+    }),
     // each pane alert that reached a device, for the daily active message's usage
     onAlertDelivered: () => options.telemetry?.tally("alerts_delivered"),
   });

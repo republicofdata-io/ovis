@@ -193,6 +193,8 @@ export interface PushServiceOptions {
   subject?: string;
   /** Current title of a pane, looked up when an alert fires; falls back to the last seeded one. */
   lookupTitle?: (paneId: string) => Promise<string | undefined>;
+  /** RoD fork: what a local pane's alert says (server/rod-alert-text.ts); undefined keeps the usual text */
+  lookupText?: (paneId: string, status: AgentStatus) => Promise<string | undefined>;
   timing?: Partial<AlertTiming>;
   now?: () => number;
   canDeliver?: (deviceId: string | null | undefined) => boolean;
@@ -276,8 +278,8 @@ export function parseSubscription(value: unknown, options: { loopbackHttp?: bool
   return { endpoint, keys: { p256dh: keys!.p256dh as string, auth: keys!.auth as string } };
 }
 
-export function statusMessage(paneId: string, title: string, status: AgentStatus): PushPayload {
-  return { pane_id: paneId, title, body: statusNotificationBody(status), tag: paneNotificationTag(paneId) };
+export function statusMessage(paneId: string, title: string, status: AgentStatus, text?: string): PushPayload {
+  return { pane_id: paneId, title, body: text ?? statusNotificationBody(status), tag: paneNotificationTag(paneId) };
 }
 
 export function endedMessage(paneId: string, title: string): PushPayload {
@@ -857,6 +859,7 @@ export function createPushService(options: PushServiceOptions): PushService {
       schedule(key, machineId, paneId, groups, async (to, silenced) => {
         if (options.inUse?.() || muted(machineId, paneId)) return;
         const title = machineId === "local" ? await titleOf(paneId) : titles.get(key) ?? paneId;
+        const text = machineId === "local" ? await options.lookupText?.(paneId, status).catch(() => undefined) : undefined;
         // the title can wait for herdr: a window that came into use, or a mute made (even one undone since), meanwhile still holds the alert
         if (options.inUse?.() || silenced() || muted(machineId, paneId)) return;
         // a device that dropped out meanwhile is not written to
@@ -864,7 +867,7 @@ export function createPushService(options: PushServiceOptions): PushService {
           const current = store().get(subscription.endpoint);
           return current && current.device_id === subscription.device_id ? [current] : [];
         });
-        await broadcast({ ...statusMessage(paneId, title, status), ...where(key, machineId), tag: paneNotificationTag(paneId, machineId) }, status === "blocked" ? "high" : "normal", live, true);
+        await broadcast({ ...statusMessage(paneId, title, status, text), ...where(key, machineId), tag: paneNotificationTag(paneId, machineId) }, status === "blocked" ? "high" : "normal", live, true);
       });
     },
 
