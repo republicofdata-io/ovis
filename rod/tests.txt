@@ -2,3 +2,4 @@
 # convention tests on every sync.
 shared/rod-pods.test.ts
 server/rod-pod-mutes.test.ts
+server/rod-alert-text.test.ts

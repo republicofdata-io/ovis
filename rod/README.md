@@ -86,3 +86,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 | This routine | `Makefile`, `rod/*`, one line in `CLAUDE.md` | v0.4.22 |
 | Public-repository guards | `rod/public-check.sh`, `rod/hooks/pre-push`, `Makefile`, `CLAUDE.md` | v0.4.22 |
 | Pod alert rule: pod engineers and designers join the mute list once; product managers and agents in no pod keep alerting | `shared/rod-pods.ts`, `server/rod-pod-mutes.ts`, 4 lines in `server/core/status.ts` | v0.4.22 |
+| Alerts say what is needed: a finished turn quotes the first line of the agent's last message, a waiting prompt its question | `server/rod-alert-text.ts`, 4 lines in `server/push.ts`, 7 in `server/core/status.ts`, `export` on `readPrompt` in `server/prompt.ts` | v0.4.22 |
