@@ -34,6 +34,7 @@ import { onChatSubmitted, promptWaitEnded, type OpenCodePromptState } from "../p
 import { type AlertTiming, createPushService, defaultStateDir } from "../push.ts";
 import { PodMutes } from "../rod-pod-mutes.ts";
 import { alertText } from "../rod-alert-text.ts";
+import { startDeskPresence } from "../rod-desk.ts";
 import { paneConversation } from "../conversation.ts";
 import { readPrompt } from "../prompt.ts";
 import { SessionPlans } from "../session-plan.ts";
@@ -79,13 +80,15 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
   usage: UsageService;
   usageLogin: UsageLoginService;
 }) {
+  // RoD fork: at the Mac with herdr open counts as in use (server/rod-desk.ts)
+  const desk = startDeskPresence();
   const push = createPushService({
     stateDir: options.stateDir ?? defaultStateDir(),
     timing: options.alertTiming,
     now: options.statusNow,
     loopbackHttp: options.pushLoopbackHttp === true,
     canDeliver: (id) => id === null || (id === undefined ? !devices.gated : devices.has(id)),
-    inUse: () => present.size > 0,
+    inUse: () => present.size > 0 || desk.present(),
     // the persisted list, read as each alert is scheduled and again as it goes out
     muted: (machineId, paneId) => paneAlertsMuted(preferences.get().muted_panes, machineId, paneId),
     lookupTitle: async (paneId) => {
@@ -604,7 +607,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
 
   // a verified OpenCode pane is tracked like a usage-login pane: closing it reaches onPaneEnded above
   const untrackOpenCode = trackVerifiedOpenCodePanes((paneId) => collector.trackPane(paneId));
-  const tracked = { ...collector, stop() { untrackOpenCode(); stopMutes(); stopSubmitted(); collector.stop(); } };
+  const tracked = { ...collector, stop() { untrackOpenCode(); stopMutes(); desk.stop(); stopSubmitted(); collector.stop(); } };
 
   const queueHeld = (paneId: string): boolean => queueStatus(paneId, "idle") === "working";
   /**
