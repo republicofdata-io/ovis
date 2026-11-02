@@ -6,3 +6,4 @@ server/rod-alert-text.test.ts
 server/rod-desk.test.ts
 server/rod-summary.test.ts
 src/components/RodWorkspacesToggle.test.tsx
+server/rod-readers.test.ts

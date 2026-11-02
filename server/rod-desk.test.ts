@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { DeskPresence, deskIdleSeconds, herdrWindowOpen, parseIdleSeconds } from "./rod-desk.ts";
+import { DeskPresence, deskIdleSeconds, herdrWindowOpen, parseIdleSeconds, sshReaders } from "./rod-desk.ts";
 
 describe("desk signals", () => {
   it("reads the idle time ioreg reports in nanoseconds", () => {
@@ -45,5 +45,18 @@ describe("desk presence", () => {
       await desk.refresh();
       expect(desk.present()).toBe(false);
     }
+  });
+});
+
+describe("a Mac's desk over SSH", () => {
+  it("reads both signals in one SSH call", async () => {
+    const calls: string[][] = [];
+    const runner = async (command: string, args: string[]) => { calls.push([command, ...args]); return '"HIDIdleTime" = 30000000000\n----ps----\nherdr\nherdr server\n'; };
+    const readers = sshReaders("demo-mac", runner);
+    const [idle, open] = await Promise.all([readers.idleSeconds(), readers.herdrWindowOpen()]);
+    expect(idle).toBe(30);
+    expect(open).toBe(true);
+    expect(calls.length).toBe(1);
+    expect(calls[0]!.slice(0, 6)).toEqual(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "demo-mac"]);
   });
 });
