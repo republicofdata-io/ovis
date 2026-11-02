@@ -76,7 +76,7 @@ a line starting with `re:` is a regular expression. Without the list the check r
 
 The plugin's settings live in the `env` file of `herdr plugin config-dir devswha.ovis`; on the
 Mac: usage counts off (`OVIS_TELEMETRY=0`, `DO_NOT_TRACK=1`), `OVIS_AUTO_UPDATE=0`,
-`OVIS_TAILSCALE_SERVE_ONLY=1` and `OVIS_TAILSCALE_HTTPS_PORT=443`. The app is published on the
+`OVIS_TAILSCALE_SERVE_ONLY=1`, `OVIS_TAILSCALE_HTTPS_PORT=443` and `OVIS_ROD_DESK_IDLE_SECONDS=300`. The app is published on the
 tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make prod-ovis` opens it.
 
 ## Our changes
@@ -87,3 +87,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 | Public-repository guards | `rod/public-check.sh`, `rod/hooks/pre-push`, `Makefile`, `CLAUDE.md` | v0.4.22 |
 | Pod alert rule: pod engineers and designers join the mute list once; product managers and agents in no pod keep alerting | `shared/rod-pods.ts`, `server/rod-pod-mutes.ts`, 4 lines in `server/core/status.ts` | v0.4.22 |
 | Alerts say what is needed: a finished turn quotes the first line of the agent's last message, a waiting prompt its question | `server/rod-alert-text.ts`, 4 lines in `server/push.ts`, 7 in `server/core/status.ts`, `export` on `readPrompt` in `server/prompt.ts` | v0.4.22 |
+| No alerts while at the Mac: a herdr window open and input within `OVIS_ROD_DESK_IDLE_SECONDS` (300 on the Mac; off when unset) counts as in use | `server/rod-desk.ts`, 5 lines in `server/core/status.ts` | v0.4.22 |
