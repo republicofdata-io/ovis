@@ -6,6 +6,7 @@
  */
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useT } from "../lib/i18n.ts";
+import "./RodWorkspacesToggle.css";
 
 export function RodWorkspacesToggle({ folded, count, onToggle }: { folded: boolean; count: number; onToggle: () => void }) {
   const t = useT();

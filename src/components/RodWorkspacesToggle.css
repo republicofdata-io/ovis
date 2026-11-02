@@ -1,0 +1,5 @@
+/* RoD fork: the workspaces fold (RodWorkspacesToggle.tsx), inset as the Agents heading is */
+.rod-workspaces-toggle {
+  margin-inline: var(--side-gutter);
+  width: calc(100% - 2 * var(--side-gutter));
+}
