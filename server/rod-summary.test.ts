@@ -44,12 +44,27 @@ describe("the summary", () => {
 describe("GET /api/rod/summary", () => {
   it("answers a valid pane and refuses anything else", async () => {
     recordStatus("w1:p1", "done", 3_000);
-    const ok = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=w1:p1"), new URL("http://x/api/rod/summary?pane_id=w1:p1"), readers([turn("assistant", "Ready for review")]));
+    const ok = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=w1:p1"), new URL("http://x/api/rod/summary?pane_id=w1:p1"), () => readers([turn("assistant", "Ready for review")]));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ status: "done", since: 3_000, headline: "Ready for review" });
-    const bad = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=../x y"), new URL("http://x/api/rod/summary?pane_id=../x%20y"), readers([]));
+    const bad = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=../x y"), new URL("http://x/api/rod/summary?pane_id=../x%20y"), () => readers([]));
     expect(bad.status).toBe(400);
-    const post = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=w1:p1", { method: "POST" }), new URL("http://x/api/rod/summary?pane_id=w1:p1"), readers([]));
+    const post = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=w1:p1", { method: "POST" }), new URL("http://x/api/rod/summary?pane_id=w1:p1"), () => readers([]));
     expect(post.status).toBe(405);
+  });
+});
+
+describe("the summary of a remote PC's pane", () => {
+  it("keeps each PC's status apart and answers for the PC asked about", async () => {
+    recordStatus("w1:p1", "working", 1_000);
+    recordStatus("w1:p1", "blocked", 2_000, "pods");
+    expect((await paneSummary("w1:p1", readers([]))).status).toBe("working");
+    expect(await paneSummary("w1:p1", readers([]), 2_500, "pods")).toEqual({ status: "blocked", since: 2_000, headline: null });
+    let asked = null as string | null;
+    const answer = await handleRodSummaryRequest(new Request("http://x/api/rod/summary?pane_id=w1:p1&machine=pods"), new URL("http://x/api/rod/summary?pane_id=w1:p1&machine=pods"), (machine) => { asked = machine; return readers([]); });
+    expect(asked).toBe("pods");
+    expect((await answer.json() as { status: string }).status).toBe("blocked");
+    const bad = await handleRodSummaryRequest(new Request("http://x/"), new URL("http://x/api/rod/summary?pane_id=w1:p1&machine=../x"), () => readers([]));
+    expect(bad.status).toBe(400);
   });
 });

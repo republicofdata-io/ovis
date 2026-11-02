@@ -76,7 +76,7 @@ a line starting with `re:` is a regular expression. Without the list the check r
 
 The plugin's settings live in the `env` file of `herdr plugin config-dir devswha.ovis`; on the
 Mac: usage counts off (`OVIS_TELEMETRY=0`, `DO_NOT_TRACK=1`), `OVIS_AUTO_UPDATE=0`,
-`OVIS_TAILSCALE_SERVE_ONLY=1`, `OVIS_TAILSCALE_HTTPS_PORT=443` and `OVIS_ROD_DESK_IDLE_SECONDS=300`. The app is published on the
+`OVIS_TAILSCALE_SERVE_ONLY=1`, `OVIS_TAILSCALE_HTTPS_PORT=443` and `OVIS_ROD_DESK_IDLE_SECONDS=300`. An app that runs away from the Mac adds `OVIS_ROD_DESK_SSH=<ssh target of the Mac>` so the desk check reads the Mac. The app is published on the
 tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make prod-ovis` opens it.
 
 ## Our changes
@@ -91,3 +91,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 | Summary line over the terminal and the chat: state, time in it, what the agent is doing now; tap for the whole line | `server/rod-summary.ts`, `server/rod-readers.ts`, `src/components/RodSummary.tsx` + `.css`, 2 lines in `src/components/PaneTerminal.tsx`, 2 in `server/dispatch.ts`, 2 in `server/core/status.ts`, 2 in `site/demo/transport.ts` | v0.4.22 |
 | Pods view: the Agents list grouped by pod (herdr tab with pod roles), members in role order, others under "Other agents" | `shared/rod-pods.ts` (`groupPods`), `src/components/RodPodLists.tsx`, 2 lines in `src/components/AgentSidebar.tsx`, one entry each in `src/lib/i18n.{ko,ja,zh}.ts` | v0.4.22 |
 | Workspaces fold for a lone Host: an "All workspaces" heading folds the workspace list, kept per device | `src/components/RodWorkspacesToggle.tsx` + `.css`, 4 lines in `src/components/MachineSidebar.tsx`, one entry each in `src/lib/i18n.{ko,ja,zh}.ts` | v0.4.22 |
+| Remote PCs: pod mutes, alert text and the summary line work for agents on remote PCs (snapshots and statuses from MachineManager, text from the bridge's own prompt and conversation routes); the desk check can read a Mac over SSH (`OVIS_ROD_DESK_SSH`) | `server/rod-readers.ts`, `server/rod-pod-mutes.ts`, `server/rod-summary.ts`, `server/rod-desk.ts`, `src/components/RodSummary.tsx`; 1 line in `server/push.ts`, 15 in `server/core/status.ts`, 1 in `server/dispatch.ts`, 1 in `src/components/PaneTerminal.tsx` | v0.4.22 |

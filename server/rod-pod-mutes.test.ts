@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SessionSnapshot } from "../shared/protocol.ts";
@@ -68,5 +68,30 @@ describe("pod mutes", () => {
     const revision = preferences.get().revision;
     mutes.observe(snapshot);
     expect(preferences.get().revision).toBe(revision);
+  });
+});
+
+describe("pod mutes across PCs", () => {
+  it("mutes a remote PC's pod members under its own key, and each PC's snapshot keeps the other's mutes", () => {
+    const dir = stateDir();
+    const preferences = new PreferenceStore(dir);
+    const mutes = new PodMutes(preferences, dir);
+    mutes.observe({ panes: [pane("w1:p2")], agents: [agent("w1:p2", "demo-eng")] });
+    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p3")], agents: [agent("w1:p2", "demo-pm"), agent("w1:p3", "demo-design")] }, "pods");
+    expect(preferences.get().muted_panes).toEqual(["w1:p2", "remote:pods:w1%3Ap3"]);
+    // the Host's next snapshot does not forget the remote mute, nor the remote's the Host's
+    mutes.observe({ panes: [pane("w1:p2")], agents: [agent("w1:p2", "demo-eng")] });
+    mutes.observe({ panes: [pane("w1:p3")], agents: [agent("w1:p3", "demo-design")] }, "pods");
+    expect(preferences.get().muted_panes).toEqual(["w1:p2", "remote:pods:w1%3Ap3"]);
+  });
+
+  it("reads the first file format, whose entries are this PC's", () => {
+    const dir = stateDir();
+    writeFileSync(join(dir, "rod-pod-mutes.json"), JSON.stringify({ muted: { "w1:p2": "term-w1:p2|claude|demo-eng" } }));
+    const preferences = new PreferenceStore(dir);
+    preferences.set({ settings: {}, muted_panes: [] });
+    new PodMutes(preferences, dir).observe({ panes: [pane("w1:p2")], agents: [agent("w1:p2", "demo-eng")] });
+    // the same agent was muted once already and unmuted since: it stays unmuted
+    expect(preferences.get().muted_panes).toEqual([]);
   });
 });

@@ -3,7 +3,8 @@
  * server reads is shown to `observe`; an agent whose pod role is silent is added once to the shared
  * mute list (server/preferences.ts `muted_panes`), which every alert channel already honours, and the
  * sidebar shows it muted. A mute undone by hand stays undone: each agent is muted once. When another
- * agent takes the pane, the mute this module made is lifted. Local panes only, for now.
+ * agent takes the pane, the mute this module made is lifted. Each PC's snapshots are shown with its
+ * id (the Host's own, and each remote PC's through MachineManager), and touch only that PC's mutes.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,44 +17,50 @@ import { writeStateDocument } from "./state-document.ts";
 type Snapshot = Pick<SessionSnapshot, "panes"> & { agents?: SessionSnapshot["agents"] };
 
 export class PodMutes {
-  /** the panes this module muted, by storage id, and the agent it muted in each */
-  private readonly muted = new Map<string, string>();
+  /** the panes this module muted, by storage id, with their PC and the agent it muted in each */
+  private readonly muted = new Map<string, { machine: string; agent: string }>();
   private readonly path: string;
 
   constructor(private readonly preferences: PreferenceStore, stateDir: string) {
     this.path = join(stateDir, "rod-pod-mutes.json");
     try {
       const held = JSON.parse(readFileSync(this.path, "utf8")) as { muted?: Record<string, unknown> };
-      for (const [key, agent] of Object.entries(held.muted ?? {})) if (typeof agent === "string") this.muted.set(key, agent);
+      for (const [key, entry] of Object.entries(held.muted ?? {})) {
+        // a bare agent is a Host pane, as the first version of this file wrote it
+        if (typeof entry === "string") this.muted.set(key, { machine: LOCAL_MACHINE, agent: entry });
+        else if (entry && typeof entry === "object" && typeof (entry as { machine?: unknown }).machine === "string" && typeof (entry as { agent?: unknown }).agent === "string") {
+          this.muted.set(key, entry as { machine: string; agent: string });
+        }
+      }
     } catch {
       // none yet, or unreadable: start with none; the next change writes the file again
     }
   }
 
-  observe(snapshot: Snapshot): void {
+  observe(snapshot: Snapshot, machineId: string = LOCAL_MACHINE): void {
     const names = new Map((snapshot.agents ?? []).map((agent) => [agent.pane_id, agent.name ?? null]));
     const add: string[] = [];
     const lift: string[] = [];
     const present = new Set<string>();
     for (const pane of snapshot.panes) {
-      const key = paneStorageId(LOCAL_MACHINE, pane.pane_id);
+      const key = paneStorageId(machineId, pane.pane_id);
       present.add(key);
       const name = names.get(pane.pane_id) ?? null;
       // the agent in this pane: its terminal, kind and pod identity
       const agent = pane.agent ? `${pane.terminal_id ?? ""}|${pane.agent}|${name ?? pane.label ?? ""}` : null;
-      const ours = this.muted.get(key);
+      const ours = this.muted.get(key)?.agent;
       if (ours !== undefined && ours !== agent) {
         this.muted.delete(key);
         lift.push(key);
       }
-      if (agent !== null && silentPodRole(podRole(name, pane.label)) && this.muted.get(key) !== agent) {
-        this.muted.set(key, agent);
+      if (agent !== null && silentPodRole(podRole(name, pane.label)) && this.muted.get(key)?.agent !== agent) {
+        this.muted.set(key, { machine: machineId, agent });
         add.push(key);
       }
     }
-    // a pane gone from herdr: forget it (the shared list is pruned of gone panes by its own owners)
+    // a pane gone from this PC's herdr: forget it (the shared list is pruned of gone panes by its own owners)
     let forgot = false;
-    for (const key of [...this.muted.keys()]) if (!present.has(key)) { this.muted.delete(key); forgot = true; }
+    for (const [key, entry] of [...this.muted]) if (entry.machine === machineId && !present.has(key)) { this.muted.delete(key); forgot = true; }
     if (add.length === 0 && lift.length === 0) {
       if (forgot) this.save();
       return;

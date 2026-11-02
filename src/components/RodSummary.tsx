@@ -1,11 +1,12 @@
 /**
  * RoD fork: one line pinned over an agent's live terminal: its state, for how long, and what it is
  * doing now (server/rod-summary.ts). Read every 10 s and on each status change; a tap shows the whole
- * line. Local panes only. Follows Claude Code's own status line (state word, elapsed time, current
+ * line. Panes on this PC and on remote PCs (`machineId`). Follows Claude Code's own status line (state word, elapsed time, current
  * step), placed in the terminal's banner stack like the app's other notices.
  */
 import { useEffect, useState } from "react";
 import type { AgentStatus } from "../../shared/protocol.ts";
+import { LOCAL_MACHINE } from "../../shared/machines.ts";
 import { apiFetch } from "../lib/api-request-id.ts";
 import { t } from "../lib/i18n.ts";
 import { formatElapsed } from "../lib/omoTasks.ts";
@@ -20,7 +21,7 @@ interface Summary {
 
 const REFRESH_MS = 10_000;
 
-export function RodSummary({ paneId, status }: { paneId: string; status?: AgentStatus }) {
+export function RodSummary({ paneId, machineId, status }: { paneId: string; machineId: string; status?: AgentStatus }) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [readAt, setReadAt] = useState(0);
   const [open, setOpen] = useState(false);
@@ -28,7 +29,7 @@ export function RodSummary({ paneId, status }: { paneId: string; status?: AgentS
   useEffect(() => {
     const controller = new AbortController();
     const load = (): void => {
-      apiFetch(`/api/rod/summary?pane_id=${encodeURIComponent(paneId)}`, { signal: controller.signal })
+      apiFetch(`/api/rod/summary?pane_id=${encodeURIComponent(paneId)}${machineId === LOCAL_MACHINE ? "" : `&machine=${encodeURIComponent(machineId)}`}`, { signal: controller.signal })
         .then((response) => (response.ok ? (response.json() as Promise<Summary>) : null))
         .then((next) => { if (next) { setSummary(next); setReadAt(Date.now()); } })
         .catch(() => undefined);
@@ -36,7 +37,7 @@ export function RodSummary({ paneId, status }: { paneId: string; status?: AgentS
     load();
     const timer = window.setInterval(load, REFRESH_MS);
     return () => { controller.abort(); window.clearInterval(timer); };
-  }, [paneId, status]);
+  }, [paneId, machineId, status]);
 
   if (summary === null || (summary.headline === null && summary.since === null)) return null;
   const word = t(STATUS_WORD[knownStatus(summary.status ?? status)]);

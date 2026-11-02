@@ -193,8 +193,8 @@ export interface PushServiceOptions {
   subject?: string;
   /** Current title of a pane, looked up when an alert fires; falls back to the last seeded one. */
   lookupTitle?: (paneId: string) => Promise<string | undefined>;
-  /** RoD fork: what a local pane's alert says (server/rod-alert-text.ts); undefined keeps the usual text */
-  lookupText?: (paneId: string, status: AgentStatus) => Promise<string | undefined>;
+  /** RoD fork: what a pane's alert says, on this PC or a remote one (server/rod-alert-text.ts); undefined keeps the usual text */
+  lookupText?: (paneId: string, status: AgentStatus, machineId: string) => Promise<string | undefined>;
   timing?: Partial<AlertTiming>;
   now?: () => number;
   canDeliver?: (deviceId: string | null | undefined) => boolean;
@@ -859,7 +859,7 @@ export function createPushService(options: PushServiceOptions): PushService {
       schedule(key, machineId, paneId, groups, async (to, silenced) => {
         if (options.inUse?.() || muted(machineId, paneId)) return;
         const title = machineId === "local" ? await titleOf(paneId) : titles.get(key) ?? paneId;
-        const text = machineId === "local" ? await options.lookupText?.(paneId, status).catch(() => undefined) : undefined;
+        const text = await options.lookupText?.(paneId, status, machineId).catch(() => undefined);
         // the title can wait for herdr: a window that came into use, or a mute made (even one undone since), meanwhile still holds the alert
         if (options.inUse?.() || silenced() || muted(machineId, paneId)) return;
         // a device that dropped out meanwhile is not written to

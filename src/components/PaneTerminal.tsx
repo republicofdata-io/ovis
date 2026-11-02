@@ -1045,7 +1045,7 @@ export function PaneTerminal({
       )}
       <div className="terminal-banners">
         {/* RoD fork: the summary line (RodSummary.tsx), over the terminal and the chat */}
-        {paneId !== null && machineId === "local" && <RodSummary paneId={paneId} status={agentStatus} />}
+        {paneId !== null && <RodSummary paneId={paneId} machineId={machineId} status={agentStatus} />}
         {paneId !== null && held && !noticesDocked && (
           <div className="terminal-banner terminal-banner-warning" role="status">
             <span>{t("Another app has this pane open. It connects here as soon as that app lets go.")}</span>

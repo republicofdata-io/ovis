@@ -35,8 +35,9 @@ import { type AlertTiming, createPushService, defaultStateDir } from "../push.ts
 import { PodMutes } from "../rod-pod-mutes.ts";
 import { alertText } from "../rod-alert-text.ts";
 import { startDeskPresence } from "../rod-desk.ts";
-import { localReaders } from "../rod-readers.ts";
+import { readersFor } from "../rod-readers.ts";
 import { recordStatus } from "../rod-summary.ts";
+import { LOCAL_MACHINE } from "../../shared/machines.ts";
 import { SessionPlans } from "../session-plan.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { UsageLoginService } from "../usage-login.ts";
@@ -95,7 +96,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
       return paneTitle(await paneGet(paneId));
     },
     // RoD fork: the alert quotes what the agent asks or last said (server/rod-alert-text.ts)
-    lookupText: (paneId, status) => alertText(paneId, status, localReaders(options.codexHome, options.opencodeDb)),
+    lookupText: (paneId, status, machineId) => alertText(paneId, status, readersFor(machineId, { codexHome: options.codexHome, opencodeDb: options.opencodeDb, endpoint: (id) => machines?.endpoint(id) })),
     // each pane alert that reached a device, for the daily active message's usage
     onAlertDelivered: () => options.telemetry?.tally("alerts_delivered"),
   });
@@ -341,6 +342,18 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     ({ type: "pane-status", pane_id: paneId, agent_status: status, ...finishes.status(paneId, status), ...about, ...(waits.waiting(paneId) ? { background_wait: true as const } : {}) });
   const machines = options.machines === false ? null : new MachineManager(options.stateDir ?? defaultStateDir(), push, completions, clientSnapshot, { bootId: options.orderSequence?.epoch, localFinishEpoch: () => finishes.epoch });
   if (machines && options.herdrProfiles) machines.watchHerdrProfiles(options.herdrProfiles);
+  // RoD fork: remote PCs' pods and statuses, as for this PC's (server/rod-pod-mutes.ts, server/rod-summary.ts)
+  const stopRodMachines = machines?.subscribe((event) => {
+    if (event.type === "machines") {
+      for (const machine of event.machines) {
+        if (machine.id === LOCAL_MACHINE || !machine.snapshot) continue;
+        podMutes.observe(machine.snapshot, machine.id);
+        for (const pane of machine.snapshot.panes) recordStatus(pane.pane_id, pane.agent_status, Date.now(), machine.id);
+      }
+    } else if (event.type === "machine-message" && event.machine_id !== LOCAL_MACHINE && event.message.type === "pane-status") {
+      recordStatus(event.message.pane_id, event.message.agent_status, Date.now(), event.machine_id);
+    }
+  });
 
   function broadcastAll(message: ServerMessage): void {
     machines?.localMessage(message);
@@ -606,7 +619,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
 
   // a verified OpenCode pane is tracked like a usage-login pane: closing it reaches onPaneEnded above
   const untrackOpenCode = trackVerifiedOpenCodePanes((paneId) => collector.trackPane(paneId));
-  const tracked = { ...collector, stop() { untrackOpenCode(); stopMutes(); desk.stop(); stopSubmitted(); collector.stop(); } };
+  const tracked = { ...collector, stop() { untrackOpenCode(); stopMutes(); desk.stop(); stopRodMachines?.(); stopSubmitted(); collector.stop(); } };
 
   const queueHeld = (paneId: string): boolean => queueStatus(paneId, "idle") === "working";
   /**
