@@ -20,6 +20,7 @@ import { useSettings } from "../lib/settings.ts";
 import { requestSettingsPage } from "../lib/paletteSettings.ts";
 import { useAnnouncedText } from "../lib/useAnnouncedText.ts";
 import { machineErrorText, saysHerdrAway } from "../lib/userError.ts";
+import { RodWorkspacesToggle } from "./RodWorkspacesToggle.tsx";
 
 /** The PC header's state word; "connected" is the quiet default and shows as a dot alone, every other state also writes its word under the name. */
 export const STATE_WORD: Readonly<Record<MachineState, string>> = {
@@ -247,7 +248,8 @@ function MachineGroup({ machine, headerless = false, ...props }: Props & { machi
   const hidden = filtered !== null && !filtered.shown;
   const matched = filtered !== null && (filtered.matched || filtered.matchedWorkspaces.size > 0 || filtered.matchedPanes.size > 0);
   const kept = filtered !== null && (matched || filtered.workspaces.size > 0 || filtered.panes.size > 0);
-  const folded = headerless ? false : filtered === null ? collapsed : filterFold ?? (collapsed && !kept);
+  // RoD fork: the lone Host folds too, from RodWorkspacesToggle
+  const folded = filtered === null ? collapsed : filterFold ?? (collapsed && !kept);
   const context = filtered !== null && !matched;
   const toggle = () => {
     if (filtered !== null) { setFilterFold(!folded); return; }
@@ -256,6 +258,7 @@ function MachineGroup({ machine, headerless = false, ...props }: Props & { machi
   };
   // the PC's name is the head of its workspaces, and the caret beside its + the one fold over them
   return <section className={`machine-group${props.selectedMachineId === machine.id ? " is-current" : ""}${online ? "" : " is-offline"}${context ? " is-filter-context" : ""}${headerless ? " is-headerless" : ""}`} hidden={hidden} aria-label={t("PC {name}", { name: machine.name })}>
+    {headerless && <RodWorkspacesToggle folded={folded} count={machine.snapshot?.workspaces.length ?? 0} onToggle={toggle} />}
     {!headerless && <header className="machine-header">
       <div className="machine-title">
         <span className="sidebar-mark" aria-hidden="true"><Monitor /></span>
@@ -294,7 +297,7 @@ function MachineGroup({ machine, headerless = false, ...props }: Props & { machi
     </div>}
     {/* the header's +, as the list's last row, also while the roster loads: an empty roster has its own New
         workspace, and a filtered list shows only what was looked for */}
-    {headerless && online && machine.snapshot?.workspaces.length !== 0 && !filter.active && <button type="button" className="machine-new-row" onClick={() => props.onNew(machine.id)}><span className="sidebar-mark" aria-hidden="true"><Plus /></span><span className="machine-new-row-label">{t("New workspace")}</span></button>}
+    {headerless && !folded && online && machine.snapshot?.workspaces.length !== 0 && !filter.active && <button type="button" className="machine-new-row" onClick={() => props.onNew(machine.id)}><span className="sidebar-mark" aria-hidden="true"><Plus /></span><span className="machine-new-row-label">{t("New workspace")}</span></button>}
   </section>;
 }
 

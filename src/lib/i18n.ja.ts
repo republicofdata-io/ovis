@@ -180,6 +180,7 @@ const BASE: Record<string, string> = {
   "Recommended": "推奨",
   "Agents": "エージェント",
   "Other agents": "その他のエージェント",
+  "All workspaces": "すべてのワークスペース",
   "Check again": "再確認",
   "Setup guide": "セットアップガイド",
   "Could not confirm this browser is paired. Check that cookies are enabled, then try again.": "このブラウザーがペアリング済みであることを確認できませんでした。Cookie が有効か確認して、もう一度お試しください。",
