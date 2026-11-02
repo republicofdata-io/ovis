@@ -50,9 +50,29 @@ git remote add upstream https://github.com/devswha/ovis.git
 git remote set-url --push upstream DISABLED
 git config remote.upstream.tagOpt --no-tags
 git config --add remote.upstream.fetch '+refs/tags/v*:refs/tags/upstream/v*'
+make hooks   # the pre-push check; it also needs gitleaks and the private word list
 ```
 
-## Installed settings
+## Public repository
+
+The fork is public, so three guards keep private details out of it:
+
+- **Rules for agents** in `CLAUDE.md`: no machine or tailnet names, private addresses, local
+  paths, client, project or pod names, real transcripts or secrets, in files, commits, pull
+  requests or screenshots. Examples use made-up pods.
+- **A check before every push** (`rod/hooks/pre-push`, turned on with `make hooks` in each
+  clone). It runs `rod/public-check.sh` on our new commits: their messages, file names and added
+  lines are matched against a private word list and scanned by
+  [gitleaks](https://github.com/gitleaks/gitleaks) (`brew install gitleaks`). Commits of official
+  releases are left out. `make public-check` runs it by hand; `rod/public-check.sh --stdin <
+  body.md` checks a pull request body before it is posted.
+- **GitHub's secret scanning and push protection**, switched on for the repository.
+
+The word list lives outside the repository, at `~/.config/rod/public-denylist.txt` (or
+`$ROD_PUBLIC_DENYLIST`), because it names what it protects. One entry per line, case-insensitive;
+a line starting with `re:` is a regular expression. Without the list the check refuses to run.
+
+
 
 The plugin's settings live in the `env` file of `herdr plugin config-dir devswha.ovis`; on the
 Mac: usage counts off (`OVIS_TELEMETRY=0`, `DO_NOT_TRACK=1`), `OVIS_AUTO_UPDATE=0`,
@@ -64,3 +84,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 | Change | Files | Since |
 |---|---|---|
 | This routine | `Makefile`, `rod/*`, one line in `CLAUDE.md` | v0.4.22 |
+| Public-repository guards | `rod/public-check.sh`, `rod/hooks/pre-push`, `Makefile`, `CLAUDE.md` | v0.4.22 |
