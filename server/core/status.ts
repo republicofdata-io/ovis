@@ -32,6 +32,7 @@ import type { PendingInputs } from "../pending-input.ts";
 import type { PreferenceStore } from "../preferences.ts";
 import { onChatSubmitted, promptWaitEnded, type OpenCodePromptState } from "../prompt.ts";
 import { type AlertTiming, createPushService, defaultStateDir } from "../push.ts";
+import { PodMutes } from "../rod-pod-mutes.ts";
 import { SessionPlans } from "../session-plan.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { UsageLoginService } from "../usage-login.ts";
@@ -92,6 +93,8 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
   });
   // a mute made while an alert waits calls it off, so an unmute cannot resurrect an old finish
   const stopMutes = preferences.subscribe(() => push.mutesChanged());
+  // RoD fork: pod engineers and designers join the mute list once (server/rod-pod-mutes.ts)
+  const podMutes = new PodMutes(preferences, options.stateDir ?? defaultStateDir());
 
   /** `done` for agents herdr loses track of (server/completion.ts), kept across restarts */
   // on herdr-core every status is the program's own report (completion.ts reportedOnly)
@@ -248,6 +251,7 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     const snapshot = await omoSnapshot();
     await gjc.refresh(snapshot.panes);
     const named = gjc.apply(omo.apply(snapshot));
+    podMutes.observe(named);
     const ids = new Set(named.panes.map((pane) => pane.pane_id));
     for (const paneId of [...agentNow.keys()]) {
       if (ids.has(paneId) || (agentRead.get(paneId) ?? 0) > read) continue;
