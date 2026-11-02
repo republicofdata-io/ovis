@@ -1,5 +1,5 @@
 #!/bin/sh
-# Merge an official Ovis release into the rod branch, check it, and push it.
+# Merge an official Ovis release into the rod branch, check it (rod/check.sh), and push it.
 #
 #   rod/sync.sh            the newest official release (a plain vX.Y.Z tag upstream)
 #   rod/sync.sh v0.4.25    that release
@@ -15,10 +15,9 @@ die() { echo "rod sync: $*" >&2; exit 1; }
 cd "$(git rev-parse --show-toplevel)"
 
 check_and_push() {
-	echo "rod sync: installing dependencies, type-checking, running unit tests"
+	echo "rod sync: installing dependencies and running rod/check.sh"
 	bun install --frozen-lockfile
-	bun run typecheck
-	bun run test:unit
+	sh rod/check.sh
 	git push origin rod
 	echo "rod sync: rod pushed. Run 'make install' to put it on this Mac."
 }

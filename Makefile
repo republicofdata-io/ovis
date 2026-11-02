@@ -15,7 +15,7 @@ status: ## Show rod, the newest official release, and what this Mac runs
 	else echo "official release: $$latest (NOT in rod: run make sync)"; fi
 	@herdr plugin list --plugin devswha.ovis --json 2>/dev/null | python3 -c 'import json,sys; p=json.load(sys.stdin)["result"]["plugins"][0]; s=p["source"]; print("installed:        " + p["version"] + " from " + s["owner"] + "/" + s["repo"] + " at " + s["requested_ref"] + " (" + s["resolved_commit"][:8] + ")")' || echo "installed:        none"
 
-sync: ## Merge the newest official release into rod, test, push (VERSION=vX.Y.Z for another)
+sync: ## Merge the newest official release into rod, check, push (VERSION=vX.Y.Z for another)
 	@sh rod/sync.sh $(VERSION)
 
 sync-finish: ## After fixing sync conflicts and committing: test and push rod
@@ -24,9 +24,8 @@ sync-finish: ## After fixing sync conflicts and committing: test and push rod
 install: ## Reinstall Ovis on this Mac from the fork (REF=branch to try a pull request)
 	@sh rod/install.sh $(or $(REF),rod)
 
-check: ## Type-check and run the unit tests
-	bun run typecheck
-	bun run test:unit
+check: ## Type-check, build, run the convention tests and the tests of our changes
+	@sh rod/check.sh
 
 prod-ovis: ## Open this Mac's Ovis address in the browser
 	@open "https://$$(tailscale status --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))')"

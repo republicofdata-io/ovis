@@ -1,0 +1,2 @@
+# Test files of our own changes, one path per line. rod/check.sh runs them with the
+# convention tests on every sync.

@@ -20,13 +20,17 @@ and otherwise follows the official releases.
 
 ```sh
 make status    # rod, the newest official release, and what this Mac runs
-make sync      # merge the newest official release into rod, type-check, unit-test, push
+make sync      # merge the newest official release into rod, run make check, push
 make install   # reinstall Ovis on this Mac from rod, keeping settings and phone alerts
 ```
 
 `make sync VERSION=v0.4.25` takes a given release. When the merge conflicts, `make sync` stops:
 resolve, `git commit`, then `make sync-finish`. Merge official releases, not their `main`,
 which changes many times a day.
+
+`make check` type-checks, builds, and runs the convention tests plus the test files listed in
+`rod/tests.txt` (the tests of our changes). Ovis runs its full unit suite on Linux only; on a
+Mac part of it hangs, so the routine does not run it.
 
 To keep conflicts rare, our changes stay small and in few places, and each one is listed below
 with the files it touches.
@@ -59,4 +63,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 
 | Change | Files | Since |
 |---|---|---|
-| This routine: `Makefile`, `rod/` | `Makefile`, `rod/*`, one line in `CLAUDE.md` | v0.4.22 |
+| This routine | `Makefile`, `rod/*`, one line in `CLAUDE.md` | v0.4.22 |
