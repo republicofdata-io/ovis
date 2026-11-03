@@ -3,8 +3,10 @@
  * server reads is shown to `observe`; an agent whose pod role is silent is added once to the shared
  * mute list (server/preferences.ts `muted_panes`), which every alert channel already honours, and the
  * sidebar shows it muted. A mute undone by hand stays undone: each agent is muted once. When another
- * agent takes the pane, the mute this module made is lifted. Each PC's snapshots are shown with its
- * id (the Host's own, and each remote PC's through MachineManager), and touch only that PC's mutes.
+ * agent takes the pane, or the pane is gone from its PC, the mute this module made is lifted, so a
+ * pane id herdr reuses later never starts muted. Each PC's snapshots are shown with its id (the
+ * Host's own, and each remote PC's through MachineManager, only while it is connected), and touch
+ * only that PC's mutes.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -58,13 +60,12 @@ export class PodMutes {
         add.push(key);
       }
     }
-    // a pane gone from this PC's herdr: forget it (the shared list is pruned of gone panes by its own owners)
-    let forgot = false;
-    for (const [key, entry] of [...this.muted]) if (entry.machine === machineId && !present.has(key)) { this.muted.delete(key); forgot = true; }
-    if (add.length === 0 && lift.length === 0) {
-      if (forgot) this.save();
-      return;
+    // a pane gone from this PC's herdr: lift the mute made for it (the app prunes gone panes only on a
+    // change of the user's) and forget it
+    for (const [key, entry] of [...this.muted]) {
+      if (entry.machine === machineId && !present.has(key)) { this.muted.delete(key); lift.push(key); }
     }
+    if (add.length === 0 && lift.length === 0) return;
     const current = this.preferences.get().muted_panes ?? [];
     const next = [...current.filter((key) => !lift.includes(key) || add.includes(key))];
     for (const key of add) if (!next.includes(key)) next.push(key);
