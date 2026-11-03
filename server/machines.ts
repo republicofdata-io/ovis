@@ -282,6 +282,11 @@ export class MachineManager {
   private bootId?: string;
   /** this server's own finish epoch now (server/finishes.ts), when it reads its own herdr (finishEnded) */
   private localFinishEpoch?: () => string;
+  /**
+   * RoD fork: told each remote PC's roster as it is taken in, the HTTP refreshes included, which
+   * `emit` does not announce (server/rod-pod-mutes.ts reads pod roles from it).
+   */
+  rodRoster?: (machine: Machine, snapshot: SessionSnapshot) => void;
   /** a monotonic clock for the health calls' start interval; tests pass their own */
   private now: () => number;
   private sourceToken = 0;
@@ -1287,7 +1292,7 @@ export class MachineManager {
       // session-changed queues one follow-up, but lets the active roster publish.
       if (["snapshot", "pane-status", "pane-exited"].includes(message.type)) runtime.snapshotRevision++;
       // a frame may have been overtaken by an HTTP read: it holds its epoch, it proves no other ended
-      if (message.type === "snapshot" && this.admitRemote(runtime, message.snapshot)) { runtime.machine.snapshot = message.snapshot; runtime.finishes.hold(message.snapshot.finish_epoch, message.snapshot.order_epoch); this.push.seed(forAlerts(message.snapshot.panes), runtime.machine.id, runtime.machine.name); this.emit(); }
+      if (message.type === "snapshot" && this.admitRemote(runtime, message.snapshot)) { runtime.machine.snapshot = message.snapshot; runtime.finishes.hold(message.snapshot.finish_epoch, message.snapshot.order_epoch); this.push.seed(forAlerts(message.snapshot.panes), runtime.machine.id, runtime.machine.name); this.rodRoster?.(runtime.machine, message.snapshot); this.emit(); }
       // a status names no server: it is the proven one's, or not known while health is asked (the cached roster's
       // order epoch may be another server's)
       if (message.type === "pane-status") {
@@ -1447,6 +1452,7 @@ export class MachineManager {
     if (settled) runtime.finishes.settle(snapshot); else runtime.finishes.hold(snapshot.finish_epoch, server);
     this.saveSoon();
     this.push.seed(forAlerts(snapshot.panes), runtime.machine.id, runtime.machine.name);
+    this.rodRoster?.(runtime.machine, snapshot);
   }
   /** the PC's server proved itself: its epoch is the accepted one, and a held snapshot of it is published */
   private proved(runtime: Runtime, boot: string): void {

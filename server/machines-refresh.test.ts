@@ -292,6 +292,22 @@ describe("machine snapshot refresh races", () => {
     expect(runtime.machine.snapshot?.panes[0]?.finish_id).toBe(4);
   });
 
+  it("RoD fork: tells rodRoster of each roster taken in, an HTTP refresh's and a streamed one's", async () => {
+    const { manager, drive, remote, runtime, send } = await remoteFixture();
+    const seen: { machine: string; panes: string[] }[] = [];
+    manager.rodRoster = (machine, roster) => { seen.push({ machine: machine.id, panes: roster.panes.map((pane) => pane.pane_id) }); };
+    const joined = snapshot();
+    joined.panes.push({ ...joined.panes[0]!, pane_id: "fixture:p2", terminal_id: "fixture:terminal-2", agent: "claude" });
+    remote.set(joined);
+    await drive.refresh(runtime);
+    expect(seen.at(-1)).toEqual({ machine: "remote", panes: ["fixture:p1", "fixture:p2"] });
+    const streamed = snapshot();
+    streamed.order_epoch = runtime.machine.snapshot?.order_epoch;
+    send({ type: "snapshot", snapshot: streamed });
+    await until(() => seen.at(-1)?.panes.length === 1);
+    expect(seen.at(-1)).toEqual({ machine: "remote", panes: ["fixture:p1"] });
+  });
+
   it("ends a remote PC's herdr run for read finishes only once a read of the PC names another, never from a saved snapshot", async () => {
     const { manager, drive } = await fixture();
     const saved = { ...snapshot("done"), finish_epoch: "saved-run" };
