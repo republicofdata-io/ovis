@@ -347,7 +347,8 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     if (event.type === "machines") {
       for (const machine of event.machines) {
         if (machine.id === LOCAL_MACHINE || !machine.snapshot) continue;
-        podMutes.observe(machine.snapshot, machine.id);
+        // only a connected PC's roster is whole enough to say a pane is gone
+        if (machine.state === "connected") podMutes.observe(machine.snapshot, machine.id);
         for (const pane of machine.snapshot.panes) recordStatus(pane.pane_id, pane.agent_status, Date.now(), machine.id);
       }
     } else if (event.type === "machine-message" && event.machine_id !== LOCAL_MACHINE && event.message.type === "pane-status") {
