@@ -342,7 +342,9 @@ export function createStatusHub<Owner, Lease>({ options, devices, preferences, c
     ({ type: "pane-status", pane_id: paneId, agent_status: status, ...finishes.status(paneId, status), ...about, ...(waits.waiting(paneId) ? { background_wait: true as const } : {}) });
   const machines = options.machines === false ? null : new MachineManager(options.stateDir ?? defaultStateDir(), push, completions, clientSnapshot, { bootId: options.orderSequence?.epoch, localFinishEpoch: () => finishes.epoch });
   if (machines && options.herdrProfiles) machines.watchHerdrProfiles(options.herdrProfiles);
-  // RoD fork: remote PCs' pods and statuses, as for this PC's (server/rod-pod-mutes.ts, server/rod-summary.ts)
+  // RoD fork: remote PCs' pods and statuses, as for this PC's (server/rod-pod-mutes.ts, server/rod-summary.ts).
+  // Pods are read from every roster taken in, since a new agent mostly arrives by an HTTP refresh.
+  if (machines) machines.rodRoster = (machine, snapshot) => { if (machine.state === "connected") podMutes.observe(snapshot, machine.id); };
   const stopRodMachines = machines?.subscribe((event) => {
     if (event.type === "machines") {
       for (const machine of event.machines) {
