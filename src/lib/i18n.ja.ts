@@ -179,7 +179,6 @@ const BASE: Record<string, string> = {
   "Submit": "送信",
   "Recommended": "推奨",
   "Agents": "エージェント",
-  "Other agents": "その他のエージェント",
   "All workspaces": "すべてのワークスペース",
   "Check again": "再確認",
   "Setup guide": "セットアップガイド",

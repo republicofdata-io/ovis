@@ -23,7 +23,6 @@ import { AgentMark, hasAgentMark } from "./AgentMark.tsx";
 import { RowMenu } from "./RowMenu.tsx";
 import { BackgroundBadge, displayPaneTitle, onRowContextMenu, PlanBadge, StatusBadge } from "./Sidebar.tsx";
 import "./AgentSidebar.css";
-import { RodPodLists } from "./RodPodLists.tsx";
 
 interface AgentRowBodyProps {
   /** the agent's kind or name; null draws a terminal, for a shell */
@@ -274,8 +273,7 @@ export function AgentSidebar({ machines, selectedMachineId, selectedPaneId, stat
           <p className="sidebar-pinned-label" aria-hidden="true"><span><Pin />{t("Pinned")}</span></p>
           <ul className="agent-list agent-list-pinned sidebar-pinned" aria-label={t("Pinned")}>{split.pinned.map(agentItem)}</ul>
         </>}
-        {/* RoD fork: grouped by pod (RodPodLists.tsx) */}
-        {split.rest.length > 0 && <RodPodLists rows={split.rest} item={agentItem} machineCount={machines.length} />}
+        {split.rest.length > 0 && <ul className="agent-list">{split.rest.map(agentItem)}</ul>}
       </>}
     </div>
     {menu && menuShown && <RowMenu anchor={menu.anchor} point={menu.point} restoreFocusTo={menu.previousFocus} title={menuShown.title} subtitle={menuShown.context} detail={menuShown.tokens.join(" · ") || undefined} onClose={closeMenu} items={[
