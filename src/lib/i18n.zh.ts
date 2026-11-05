@@ -181,7 +181,6 @@ const BASE: Record<string, string> = {
   "Submit": "提交",
   "Recommended": "推荐",
   "Agents": "代理",
-  "Other agents": "其他代理",
   "All workspaces": "所有工作区",
   "Check again": "重新检查",
   "Setup guide": "设置向导",

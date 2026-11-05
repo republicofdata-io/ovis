@@ -177,7 +177,6 @@ const BASE: Record<string, string> = {
   "Submit": "제출",
   "Recommended": "추천",
   "Agents": "에이전트",
-  "Other agents": "다른 에이전트",
   "All workspaces": "모든 워크스페이스",
   "Check again": "다시 확인",
   "Setup guide": "설정 안내",
