@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { podRole, silentPodRole } from "./rod-pods.ts";
+import { alertingAgent, podRole, silentAgent } from "./rod-pods.ts";
 
 describe("pod roles", () => {
   it("reads the role from a dispatch name, with or without its number", () => {
@@ -26,10 +26,27 @@ describe("pod roles", () => {
     expect(podRole("demo-engineer", null)).toBeNull();
   });
 
-  it("keeps only engineers and designers silent", () => {
-    expect(silentPodRole("eng")).toBe(true);
-    expect(silentPodRole("design")).toBe(true);
-    expect(silentPodRole("pm")).toBe(false);
-    expect(silentPodRole(null)).toBe(false);
+});
+
+describe("who alerts", () => {
+  it("alerts for the chief of staff's pane only, by its herdr name or its pane label", () => {
+    expect(alertingAgent("rod-chief", null)).toBe(true);
+    expect(alertingAgent(null, " Rod-Chief ")).toBe(true);
+    expect(alertingAgent("rod-desk", null)).toBe(false);
+    expect(alertingAgent("demo-pm", "chief")).toBe(false);
+  });
+
+  it("keeps every other agent silent: product managers, the back office, pod members, agents in no pod, unnamed agents", () => {
+    for (const name of ["demo-pm", "rod-desk", "demo-lead", "demo-eng-2", "demo-design", "reviewer", "solo"]) {
+      expect(silentAgent(name, null)).toBe(true);
+    }
+    expect(silentAgent(null, null)).toBe(true);
+    expect(silentAgent(null, "eng")).toBe(true);
+    expect(silentAgent("rod-chief", null)).toBe(false);
+  });
+
+  it("takes another list of alerting names", () => {
+    expect(silentAgent("demo-pm", null, ["demo-pm"])).toBe(false);
+    expect(silentAgent("rod-chief", null, ["demo-pm"])).toBe(true);
   });
 });

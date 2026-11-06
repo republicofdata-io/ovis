@@ -1,6 +1,7 @@
 /**
- * RoD fork: pod engineers and designers stay silent (shared/rod-pods.ts). Each herdr snapshot this
- * server reads is shown to `observe`; an agent whose pod role is silent is added once to the shared
+ * RoD fork: every agent but the chief of staff's pane stays silent (shared/rod-pods.ts; the alerting
+ * names come from OVIS_ROD_ALERT_AGENTS, comma-separated, or default to `rod-chief`). Each herdr
+ * snapshot this server reads is shown to `observe`; a silent agent is added once to the shared
  * mute list (server/preferences.ts `muted_panes`), which every alert channel already honours, and the
  * sidebar shows it muted. A mute undone by hand stays undone: each agent is muted once. When another
  * agent takes the pane, or the pane is gone from its PC, the mute this module made is lifted, so a
@@ -12,18 +13,24 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SessionSnapshot } from "../shared/protocol.ts";
 import { LOCAL_MACHINE, paneStorageId } from "../shared/machines.ts";
-import { podRole, silentPodRole } from "../shared/rod-pods.ts";
+import { DEFAULT_ALERTING_AGENTS, silentAgent } from "../shared/rod-pods.ts";
 import type { PreferenceStore } from "./preferences.ts";
 import { writeStateDocument } from "./state-document.ts";
 
 type Snapshot = Pick<SessionSnapshot, "panes"> & { agents?: SessionSnapshot["agents"] };
+
+/** The agents that alert, from OVIS_ROD_ALERT_AGENTS (comma-separated herdr names) or the default. */
+export function alertingAgentsFromEnv(env: NodeJS.ProcessEnv = process.env): readonly string[] {
+  const named = (env.OVIS_ROD_ALERT_AGENTS ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
+  return named.length > 0 ? named : DEFAULT_ALERTING_AGENTS;
+}
 
 export class PodMutes {
   /** the panes this module muted, by storage id, with their PC and the agent it muted in each */
   private readonly muted = new Map<string, { machine: string; agent: string }>();
   private readonly path: string;
 
-  constructor(private readonly preferences: PreferenceStore, stateDir: string) {
+  constructor(private readonly preferences: PreferenceStore, stateDir: string, private readonly alerting: readonly string[] = alertingAgentsFromEnv()) {
     this.path = join(stateDir, "rod-pod-mutes.json");
     try {
       const held = JSON.parse(readFileSync(this.path, "utf8")) as { muted?: Record<string, unknown> };
@@ -55,7 +62,7 @@ export class PodMutes {
         this.muted.delete(key);
         lift.push(key);
       }
-      if (agent !== null && silentPodRole(podRole(name, pane.label)) && this.muted.get(key)?.agent !== agent) {
+      if (agent !== null && silentAgent(name, pane.label, this.alerting) && this.muted.get(key)?.agent !== agent) {
         this.muted.set(key, { machine: machineId, agent });
         add.push(key);
       }

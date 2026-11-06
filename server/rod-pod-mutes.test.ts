@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { SessionSnapshot } from "../shared/protocol.ts";
 import { PreferenceStore } from "./preferences.ts";
-import { PodMutes } from "./rod-pod-mutes.ts";
+import { PodMutes, alertingAgentsFromEnv } from "./rod-pod-mutes.ts";
 
 type Pane = SessionSnapshot["panes"][number];
 type Agent = NonNullable<SessionSnapshot["agents"]>[number];
@@ -25,15 +25,24 @@ function agent(pane_id: string, name: string): Agent {
 }
 
 describe("pod mutes", () => {
-  it("mutes pod engineers and designers, never the product manager or agents in no pod", () => {
+  it("mutes every agent but the chief of staff's pane; a pane with no agent is left alone", () => {
     const dir = stateDir();
     const preferences = new PreferenceStore(dir);
     const mutes = new PodMutes(preferences, dir);
     mutes.observe({
-      panes: [pane("w1:p1"), pane("w1:p2"), pane("w1:p3", { label: "design" }), pane("w1:p4"), pane("w1:p5", { label: "eng", agent: null })],
-      agents: [agent("w1:p1", "demo-pm"), agent("w1:p2", "demo-eng-2"), agent("w1:p4", "reviewer")],
+      panes: [pane("w1:p1"), pane("w1:p2"), pane("w1:p3", { label: "design" }), pane("w1:p4"), pane("w1:p5", { label: "eng", agent: null }), pane("w1:p6")],
+      agents: [agent("w1:p1", "demo-pm"), agent("w1:p2", "demo-eng-2"), agent("w1:p4", "reviewer"), agent("w1:p6", "rod-chief")],
     });
-    expect(preferences.get().muted_panes).toEqual(["w1:p2", "w1:p3"]);
+    expect(preferences.get().muted_panes).toEqual(["w1:p1", "w1:p2", "w1:p3", "w1:p4"]);
+  });
+
+  it("reads the alerting names from the environment, or defaults to the chief", () => {
+    expect(alertingAgentsFromEnv({})).toEqual(["rod-chief"]);
+    expect(alertingAgentsFromEnv({ OVIS_ROD_ALERT_AGENTS: " Demo-PM, rod-chief ,, " })).toEqual(["demo-pm", "rod-chief"]);
+    const dir = stateDir();
+    const preferences = new PreferenceStore(dir);
+    new PodMutes(preferences, dir, ["demo-pm"]).observe({ panes: [pane("w1:p1"), pane("w1:p6")], agents: [agent("w1:p1", "demo-pm"), agent("w1:p6", "rod-chief")] });
+    expect(preferences.get().muted_panes).toEqual(["w1:p6"]);
   });
 
   it("keeps a mute undone by hand undone, across a restart", () => {
@@ -53,9 +62,9 @@ describe("pod mutes", () => {
     const preferences = new PreferenceStore(dir);
     preferences.set({ settings: {}, muted_panes: ["w1:p9"] });
     const mutes = new PodMutes(preferences, dir);
-    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p9")], agents: [agent("w1:p2", "demo-eng")] });
+    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p9", { agent: null })], agents: [agent("w1:p2", "demo-eng")] });
     expect(preferences.get().muted_panes).toEqual(["w1:p9", "w1:p2"]);
-    mutes.observe({ panes: [pane("w1:p2", { agent: "codex" }), pane("w1:p9")], agents: [agent("w1:p2", "solo")] });
+    mutes.observe({ panes: [pane("w1:p2", { agent: "codex" }), pane("w1:p9", { agent: null })], agents: [agent("w1:p2", "rod-chief")] });
     expect(preferences.get().muted_panes).toEqual(["w1:p9"]);
   });
 
@@ -64,13 +73,14 @@ describe("pod mutes", () => {
     const preferences = new PreferenceStore(dir);
     preferences.set({ settings: {}, muted_panes: ["w1:p9"] });
     const mutes = new PodMutes(preferences, dir);
-    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p9")], agents: [agent("w1:p2", "demo-eng")] });
+    // p9 is a plain terminal muted by hand: no agent, so nothing of this module's
+    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p9", { agent: null })], agents: [agent("w1:p2", "demo-eng")] });
     expect(preferences.get().muted_panes).toEqual(["w1:p9", "w1:p2"]);
     mutes.observe({ panes: [], agents: [] });
     // the mute made by hand is not this module's: it stays
     expect(preferences.get().muted_panes).toEqual(["w1:p9"]);
     const again = new PodMutes(new PreferenceStore(dir), dir);
-    again.observe({ panes: [pane("w1:p2", { terminal_id: "term-new" })], agents: [agent("w1:p2", "solo")] });
+    again.observe({ panes: [pane("w1:p2", { terminal_id: "term-new" })], agents: [agent("w1:p2", "rod-chief")] });
     expect(new PreferenceStore(dir).get().muted_panes).toEqual(["w1:p9"]);
   });
 
@@ -92,7 +102,7 @@ describe("pod mutes across PCs", () => {
     const preferences = new PreferenceStore(dir);
     const mutes = new PodMutes(preferences, dir);
     mutes.observe({ panes: [pane("w1:p2")], agents: [agent("w1:p2", "demo-eng")] });
-    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p3")], agents: [agent("w1:p2", "demo-pm"), agent("w1:p3", "demo-design")] }, "pods");
+    mutes.observe({ panes: [pane("w1:p2"), pane("w1:p3")], agents: [agent("w1:p2", "rod-chief"), agent("w1:p3", "demo-design")] }, "pods");
     expect(preferences.get().muted_panes).toEqual(["w1:p2", "remote:pods:w1%3Ap3"]);
     // the Host's next snapshot does not forget the remote mute, nor the remote's the Host's
     mutes.observe({ panes: [pane("w1:p2")], agents: [agent("w1:p2", "demo-eng")] });
