@@ -85,7 +85,7 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 |---|---|---|
 | This routine | `Makefile`, `rod/*`, one line in `CLAUDE.md` | v0.4.22 |
 | Public-repository guards | `rod/public-check.sh`, `rod/hooks/pre-push`, `Makefile`, `CLAUDE.md` | v0.4.22 |
-| Pod alert rule: pod engineers and designers join the mute list once, and leave it when their pane closes; product managers and agents in no pod keep alerting | `shared/rod-pods.ts`, `server/rod-pod-mutes.ts`, 4 lines in `server/core/status.ts` | v0.4.22 |
+| Alert rule: only the chief of staff's pane alerts (`rod-chief`, or the names in `OVIS_ROD_ALERT_AGENTS`); every other agent joins the mute list once and leaves it when its pane closes or changes hands, so new panes stay quiet. Until 2026-11-06 only pod engineers and designers were muted | `shared/rod-pods.ts`, `server/rod-pod-mutes.ts`, 4 lines in `server/core/status.ts` | v0.4.22 |
 | Alerts say what is needed: a finished turn quotes the first line of the agent's last message, a waiting prompt its question | `server/rod-alert-text.ts`, 4 lines in `server/push.ts`, 7 in `server/core/status.ts`, `export` on `readPrompt` in `server/prompt.ts` | v0.4.22 |
 | No alerts while at the Mac: a herdr window open and input within `OVIS_ROD_DESK_IDLE_SECONDS` (300 on the Mac; off when unset) counts as in use | `server/rod-desk.ts`, 5 lines in `server/core/status.ts` | v0.4.22 |
 | Summary line over the terminal and the chat: state, time in it, what the agent is doing now; tap for the whole line | `server/rod-summary.ts`, `server/rod-readers.ts`, `src/components/RodSummary.tsx` + `.css`, 2 lines in `src/components/PaneTerminal.tsx`, 2 in `server/dispatch.ts`, 2 in `server/core/status.ts`, 2 in `site/demo/transport.ts` | v0.4.22 |
