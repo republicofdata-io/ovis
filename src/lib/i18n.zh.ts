@@ -334,6 +334,21 @@ const BASE: Record<string, string> = {
   "Weekly": "每周",
   "Open terminal": "打开终端",
   "Sign in to {agent}": "登录 {agent}",
+  // ---- RoD fork: send a pasted path to the chief (RodSendPath.tsx) ----
+  "Send a file to the chief": "发送文件给主管",
+  "Send to the chief": "发送给主管",
+  "Copies it to ~/incoming on {pc}": "复制到 {pc} 上的 ~/incoming",
+  "{name} is on your Mac. The chief can't read it until it is sent.": "{name} 在你的 Mac 上。发送之前主管无法读取。",
+  "{name} ({size}) is on your Mac. The chief can't read it until it is sent.": "{name}（{size}）在你的 Mac 上。发送之前主管无法读取。",
+  "Sending {name} to the chief: {done} of {total}": "正在将 {name} 发送给主管：{done} / {total}",
+  "Sending {name} to the chief…": "正在将 {name} 发送给主管…",
+  "Sent so far": "已发送",
+  "Stop sending": "停止发送",
+  "Sent. Your message now points to the chief's copy: {path}": "已发送。你的消息现在指向主管那边的副本：{path}",
+  "Stopped. {name} can pick up where it left off.": "已停止。{name} 可以从中断处继续。",
+  "{name} did not arrive: {reason}": "{name} 未送达：{reason}",
+  "Send the rest": "发送剩余部分",
+  "The send could not start": "无法开始发送",
 };
 
 /** The parts ZH is made of; src/lib/i18n.test.ts fails when a key is in two parts, since a spread keeps only the last. */

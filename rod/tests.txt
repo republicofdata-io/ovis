@@ -8,3 +8,5 @@ server/rod-summary.test.ts
 src/components/RodWorkspacesToggle.test.tsx
 server/rod-readers.test.ts
 server/machines-refresh.test.ts
+shared/rod-send-path.test.ts
+server/rod-send-path.test.ts

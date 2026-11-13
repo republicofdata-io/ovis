@@ -452,6 +452,10 @@ export class SshConnection {
       return out;
     } finally { clearTimeout(timer); this.children.delete(proc); }
   }
+  /** RoD fork: an ssh command that rides this connection's master (server/rod-send-path.ts); null without one */
+  muxCommand(): string[] | null {
+    return this.multiplexed && this.connected() ? [this.client.ssh, "-S", this.control, "-o", "BatchMode=yes", "-o", "ControlMaster=no"] : null;
+  }
   /** whether the master connection still stands: false once ssh exited (the PC went away), was killed (Bun then sets only signalCode) or was closed; in direct mode also once a forward ended */
   connected(): boolean { return !this.closed && !this.broken && this.master !== null && this.master.exitCode === null && this.master.signalCode === null; }
   close(): void {

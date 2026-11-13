@@ -1230,6 +1230,11 @@ export class MachineManager {
     const runtime = this.machines.get(id);
     return runtime?.machine.enabled && runtime.machine.state === "connected" ? runtime.endpoint : undefined;
   }
+  /** RoD fork: the SSH connection to a connected PC (server/rod-send-path.ts) */
+  rodSsh(id: string): SshConnection | undefined {
+    const runtime = this.machines.get(id);
+    return runtime?.machine.enabled && runtime.machine.state === "connected" ? runtime.ssh : undefined;
+  }
   trackTerminal(id: string, close: () => void): () => void {
     const runtime = this.machines.get(id);
     runtime?.terminals.add(close);
