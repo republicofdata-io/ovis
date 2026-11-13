@@ -71,6 +71,8 @@ import { useT } from "../lib/i18n.ts";
 import { offersRetry, userFailure, type UserFailure } from "../lib/userError.ts";
 import { AttachmentTooLargeError } from "../lib/api.ts";
 import { modalOpen } from "../lib/focus.ts";
+import { RodSendPath } from "./RodSendPath.tsx";
+import { LOCAL_MACHINE } from "../../shared/machines.ts";
 
 export interface ComposerProps {
   connected: boolean;
@@ -1125,6 +1127,8 @@ export function Composer({
     <div className={`composer${notices ? " has-notices" : ""}`} role="group" aria-label={t("Message composer")} data-dictating={dictation.voice.state !== "idle" ? "" : undefined} inert={inert || undefined}>
       {greeting}
       {notices}
+      {/* RoD fork: send a pasted path to the chief of staff's PC (RodSendPath.tsx) */}
+      {machineId !== LOCAL_MACHINE && <RodSendPath paneId={paneId} machineId={machineId} text={text} onSent={(pasted, remote) => composerDrafts.set(draftKey, (previous) => previous.replace(pasted, () => remote))} />}
       {/* no Tab key on a phone: the suggestion can be a chip there that fills the box, when Settings asks for it */}
       {settings.suggestionChip && offered !== null && text === "" && (
         <div className="composer-quick composer-suggestion-row">

@@ -330,6 +330,21 @@ const BASE: Record<string, string> = {
   "Weekly": "주간",
   "Open terminal": "터미널 열기",
   "Sign in to {agent}": "{agent}에 로그인",
+  // ---- RoD fork: send a pasted path to the chief (RodSendPath.tsx) ----
+  "Send a file to the chief": "치프에게 파일 보내기",
+  "Send to the chief": "치프에게 보내기",
+  "Copies it to ~/incoming on {pc}": "{pc}의 ~/incoming에 복사합니다",
+  "{name} is on your Mac. The chief can't read it until it is sent.": "{name}은(는) Mac에 있습니다. 보내기 전에는 치프가 읽을 수 없습니다.",
+  "{name} ({size}) is on your Mac. The chief can't read it until it is sent.": "{name}({size})은(는) Mac에 있습니다. 보내기 전에는 치프가 읽을 수 없습니다.",
+  "Sending {name} to the chief: {done} of {total}": "{name}을(를) 치프에게 보내는 중: {total} 중 {done}",
+  "Sending {name} to the chief…": "{name}을(를) 치프에게 보내는 중…",
+  "Sent so far": "보낸 양",
+  "Stop sending": "보내기 중지",
+  "Sent. Your message now points to the chief's copy: {path}": "보냈습니다. 메시지가 이제 치프 쪽 사본을 가리킵니다: {path}",
+  "Stopped. {name} can pick up where it left off.": "중지됨. {name}은(는) 멈춘 곳부터 이어서 보낼 수 있습니다.",
+  "{name} did not arrive: {reason}": "{name}이(가) 도착하지 않았습니다: {reason}",
+  "Send the rest": "나머지 보내기",
+  "The send could not start": "보내기를 시작할 수 없습니다",
 };
 
 /** The parts KO is made of; src/lib/i18n.test.ts fails when a key is in two parts, since a spread keeps only the last. */

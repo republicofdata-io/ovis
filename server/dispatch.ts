@@ -58,6 +58,7 @@ import type { UsageService } from "./usage.ts";
 import type { VoiceService } from "./voice.ts";
 import { readersFor } from "./rod-readers.ts";
 import { handleRodSummaryRequest } from "./rod-summary.ts";
+import { handleRodSendPathRequest, sendPathsFor } from "./rod-send-path.ts";
 
 type PortalStartup = { ok: true } | { ok: false; error: unknown };
 
@@ -367,6 +368,8 @@ export async function handleRequest(request: Request, ctx: ServerContext): Promi
   if (pathname === "/api/preferences") { setRequestRoute(pathname); return handlePreferencesRequest(request, preferences); }
   // RoD fork: the summary line above a pane's terminal (server/rod-summary.ts)
   if (pathname === "/api/rod/summary") { setRequestRoute(pathname); return handleRodSummaryRequest(request, url, (machineId) => readersFor(machineId, { codexHome: options.codexHome, opencodeDb: options.opencodeDb, endpoint: (id) => machines?.endpoint(id) })); }
+  // RoD fork: a path pasted in the chief of staff's composer, sent to ~/incoming on its PC (server/rod-send-path.ts)
+  if (pathname.startsWith("/api/rod/send-path/")) { setRequestRoute(pathname); return handleRodSendPathRequest(request, url, sendPathsFor(machines)); }
   // the finishes read in some browser of this server; a watching device reads them and cannot add to them (above)
   if (pathname === "/api/seen") { setRequestRoute(pathname); return handleSeenRequest(request, seen); }
 

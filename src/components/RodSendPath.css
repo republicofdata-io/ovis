@@ -1,0 +1,22 @@
+/* RoD fork: the send-a-path row over the chief of staff's composer (RodSendPath.tsx), one of the
+   composer's notice rows (ComposerNotices.css), with a thin progress line while it copies */
+.rod-send-path-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.rod-send-path-bar {
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.rod-send-path-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}

@@ -332,6 +332,21 @@ const BASE: Record<string, string> = {
   "Weekly": "週次",
   "Open terminal": "ターミナルを開く",
   "Sign in to {agent}": "{agent} にサインイン",
+  // ---- RoD fork: send a pasted path to the chief (RodSendPath.tsx) ----
+  "Send a file to the chief": "チーフにファイルを送る",
+  "Send to the chief": "チーフに送る",
+  "Copies it to ~/incoming on {pc}": "{pc} の ~/incoming にコピーします",
+  "{name} is on your Mac. The chief can't read it until it is sent.": "{name} は Mac にあります。送るまでチーフは読めません。",
+  "{name} ({size}) is on your Mac. The chief can't read it until it is sent.": "{name}（{size}）は Mac にあります。送るまでチーフは読めません。",
+  "Sending {name} to the chief: {done} of {total}": "{name} をチーフに送信中: {total} 中 {done}",
+  "Sending {name} to the chief…": "{name} をチーフに送信中…",
+  "Sent so far": "送信済み",
+  "Stop sending": "送信を停止",
+  "Sent. Your message now points to the chief's copy: {path}": "送信しました。メッセージはチーフ側のコピーを指しています: {path}",
+  "Stopped. {name} can pick up where it left off.": "停止しました。{name} は止まったところから再開できます。",
+  "{name} did not arrive: {reason}": "{name} は届きませんでした: {reason}",
+  "Send the rest": "残りを送る",
+  "The send could not start": "送信を開始できませんでした",
 };
 
 /** The parts JA is made of; src/lib/i18n.test.ts fails when a key is in two parts, since a spread keeps only the last. */
