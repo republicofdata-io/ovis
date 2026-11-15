@@ -79,6 +79,40 @@ Mac: usage counts off (`OVIS_TELEMETRY=0`, `DO_NOT_TRACK=1`), `OVIS_AUTO_UPDATE=
 `OVIS_TAILSCALE_SERVE_ONLY=1`, `OVIS_TAILSCALE_HTTPS_PORT=443` and `OVIS_ROD_DESK_IDLE_SECONDS=300`. An app that runs away from the Mac adds `OVIS_ROD_DESK_SSH=<ssh target of the Mac>` so the desk check reads the Mac. The app is published on the
 tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make prod-ovis` opens it.
 
+## Ovis on a Linux machine
+
+So the phone reaches the agents' herdr with the Mac asleep or off, Ovis can also run on the
+always-on Linux machine that runs them, as the user whose herdr it serves. Other users of that
+machine (the agents' own user, for one) can reach any port on it, its tailnet address included,
+and write any header, so listening on loopback or the tailnet is no fence. The fence is
+`OVIS_TOKEN`: with it set, nothing gets in but a paired device or the token
+(`server/rod-linux-host.test.ts` holds that against an official release that reorders the access
+check).
+
+1. **As that user**: `rod/linux-host.sh prepare` fetches `rod` into `~/.local/share/ovis-rod`,
+   builds it, writes `~/.config/ovis-rod/env` (folder 700, file 600) with a new token, and prints
+   the systemd unit. It refuses a checkout, bun or herdr that another user can change, since the
+   service runs them as this user. Nothing in the unit is secret; the token stays in the env file.
+2. **As root**: install the unit as `/etc/systemd/system/ovis-rod.service` and enable it; it starts
+   at boot, and refuses to start without a token. Publish it with
+   `tailscale serve --bg --https=443 http://127.0.0.1:7317`. Optionally, a firewall rule refuses the
+   agents' user any connection to 443 and 7317 on this machine (nftables, in an `output` chain:
+   `oifname "lo" meta skuid "<agents' user>" tcp dport { 443, 7317 } reject with tcp reset`).
+3. **The tailnet policy**: the phone may reach this machine on tcp 443, nothing else.
+4. **Pair the phone**: as that user, start a code with the token, without putting it on a command line:
+   `set -a; . ~/.config/ovis-rod/env; set +a; printf 'header = "Authorization: Bearer %s"\n' "$OVIS_TOKEN" | curl -sS -K - -X POST -H 'x-herdr-machine: 1' http://127.0.0.1:7317/api/devices/pair/start`.
+   Open `https://<machine>/` on the phone, add it to the Home Screen, and type the six digits in
+   that app (it keeps its own cookies). Turn alerts on there and off in the Mac's app, so each
+   alert comes once.
+5. **Check it**: as the agents' user, `rod/refusal-check.sh http://127.0.0.1:7317 https://<machine>`
+   must print `every try was refused`.
+
+Never copy the Mac's env file or state folder: `OVIS_TAILSCALE_SERVE_ONLY` lets a serve request
+with no login in as the owner when no token is set, `OVIS_ROD_DESK_SSH` would reach the Mac from
+the machine, and the state folder holds the Mac's paired devices. To update, run
+`rod/linux-host.sh prepare [ref]` again, then `systemctl restart ovis-rod` as root. When that user's
+herdr is not running, the app says it cannot reach herdr and picks it up once herdr starts.
+
 ## Our changes
 
 | Change | Files | Since |
@@ -91,3 +125,4 @@ tailnet with `tailscale serve --bg --https=443 http://127.0.0.1:7317`; `make pro
 | Summary line over the terminal and the chat: state, time in it, what the agent is doing now; tap for the whole line | `server/rod-summary.ts`, `server/rod-readers.ts`, `src/components/RodSummary.tsx` + `.css`, 2 lines in `src/components/PaneTerminal.tsx`, 2 in `server/dispatch.ts`, 2 in `server/core/status.ts`, 2 in `site/demo/transport.ts` | v0.4.22 |
 | Workspaces fold for a lone Host: an "All workspaces" heading folds the workspace list, kept per device | `src/components/RodWorkspacesToggle.tsx` + `.css`, 4 lines in `src/components/MachineSidebar.tsx`, one entry each in `src/lib/i18n.{ko,ja,zh}.ts` | v0.4.22 |
 | Remote PCs: pod mutes, alert text and the summary line work for agents on remote PCs (snapshots and statuses from MachineManager, text from the bridge's own prompt and conversation routes); the desk check can read a Mac over SSH (`OVIS_ROD_DESK_SSH`) | `server/rod-readers.ts`, `server/rod-pod-mutes.ts`, `server/rod-summary.ts`, `server/rod-desk.ts`, `src/components/RodSummary.tsx`; 1 line in `server/push.ts`, 3 in `server/machines.ts` (the `rodRoster` hook, tested in `server/machines-refresh.test.ts`), 18 in `server/core/status.ts`, 1 in `server/dispatch.ts`, 1 in `src/components/PaneTerminal.tsx` | v0.4.22 |
+| Ovis on a Linux machine: a setup script and systemd unit for running it as the herdr user's service behind `tailscale serve`, with `OVIS_TOKEN` keeping the machine's other users out; a contract test that the token comes first in the access check, and a live check that another user is refused | `rod/linux-host.sh`, `rod/refusal-check.sh`, `server/rod-linux-host.test.ts` | v0.4.22 |
