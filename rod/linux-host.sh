@@ -138,7 +138,6 @@ prepare() {
 	git -C "$checkout" checkout --quiet --detach "origin/$ref" 2>/dev/null || git -C "$checkout" checkout --quiet --detach "$ref"
 	say "checkout at $ref ($(git -C "$checkout" rev-parse --short HEAD))"
 	cd "$checkout"
-	umask 022
 	sh scripts/with-bun.sh install --frozen-lockfile
 	sh scripts/with-bun.sh run build
 	# a release tag has a checked Rust PTY host; a branch has none, and terminals use Node from PATH
@@ -158,16 +157,18 @@ prepare() {
 }
 
 # A pairing code for one phone. The token is read here and handed to curl on its standard input,
-# so it is on no command line and in no output; only the code and its end are printed.
+# so it is on no command line and in no output; only the code and its end are printed. curl's -q
+# (first) leaves out the user's ~/.curlrc, where a verbose or trace line would print the header.
 pair() {
 	[ -f "$config/env" ] || die "no settings in $config/env: run prepare first"
 	alone "$config/env"
 	grep -Eq '^OVIS_TOKEN=.{32,}$' "$config/env" || die "no OVIS_TOKEN of 32 characters or more in $config/env: run prepare first"
 	at=$(sed -n 's/^PORT=//p' "$config/env" | tail -n 1)
 	answer=$(
-		token=$(sed -n 's/^OVIS_TOKEN=//p' "$config/env" | tail -n 1)
+		# systemd strips one pair of quotes around a value: so does this
+		token=$(sed -n 's/^OVIS_TOKEN=//p' "$config/env" | tail -n 1 | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/')
 		printf 'header = "Authorization: Bearer %s"\n' "$token" |
-			curl -sS --max-time 10 -K - -X POST -H 'x-herdr-machine: 1' -H 'content-type: application/json' --data '{}' "http://127.0.0.1:${at:-$port}/api/devices/pair/start"
+			curl -q -sS --max-time 10 -K - -X POST -H 'x-herdr-machine: 1' -H 'content-type: application/json' --data '{}' "http://127.0.0.1:${at:-$port}/api/devices/pair/start"
 	) || die "Ovis did not answer on port ${at:-$port}: is the service running? (systemctl status ovis-rod)"
 	printf '%s' "$answer" | python3 -c '
 import json, sys
