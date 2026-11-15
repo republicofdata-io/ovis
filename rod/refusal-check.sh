@@ -16,6 +16,7 @@ set -u
 command -v curl >/dev/null || { echo "refusal-check: curl is not on PATH" >&2; exit 2; }
 
 failed=0
+answered=0
 pane=w1:p1
 # what tailscale serve would state for this machine's owner, read here so the forgery is the real one
 status=$(tailscale status --json 2>/dev/null) || status=""
@@ -58,7 +59,7 @@ for base in "$@"; do
 	health=$(curl -sS --max-time 10 "$base/api/health?scope=bridge" 2>/dev/null)
 	rc=$?
 	case "$rc:$health" in
-		0:*'"required":true'*) echo "health   up, asks for a token" ;;
+		0:*'"required":true'*) echo "health   up, asks for a token"; answered=1 ;;
 		7:*) echo "health   connection refused: a firewall rule, or nothing listening (check the server is up as its owner)" ;;
 		0:*) echo "TOKEN?   the server does not say it asks for a token: $(printf '%s' "$health" | head -c 200)"; failed=1 ;;
 		*) echo "UNTESTED curl exit $rc reaching $base: check the address"; failed=1 ;;
@@ -95,5 +96,7 @@ if [ -n "$address" ]; then
 	fi
 fi
 
-if [ "$failed" = 0 ]; then echo "refusal-check: every try was refused"; else echo "refusal-check: a request got in, or a try could not be made" >&2; fi
+if [ "$failed" = 0 ] && [ "$answered" = 0 ]; then
+	echo "refusal-check: every try was refused at the connection: confirm as the server's owner, with rod/linux-host.sh status, that the server is up"
+elif [ "$failed" = 0 ]; then echo "refusal-check: every try was refused"; else echo "refusal-check: a request got in, or a try could not be made" >&2; fi
 exit "$failed"

@@ -98,6 +98,9 @@ settings() {
 	umask 077
 	mkdir -p "$config" "$state"
 	chmod 700 "$config" "$state"
+	# another user who could swap the settings could set their own token
+	alone "$config"
+	alone "$state"
 	if [ -f "$config/env" ]; then
 		chmod 600 "$config/env"
 		grep -Eq '^OVIS_TOKEN=.{32,}$' "$config/env" || die "$config/env has no OVIS_TOKEN of 32 characters or more: without one, any process on this machine can drive the panes"

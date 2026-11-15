@@ -110,7 +110,9 @@ check).
    alert comes once.
 5. **Check it**: as the agents' user, `rod/refusal-check.sh http://127.0.0.1:7317 https://<machine>`
    must print `every try was refused`. Only a 401 or a refused connection counts; any other
-   answer, or a try that could not be made, fails it.
+   answer, or a try that could not be made, fails it. When the firewall rule refuses every
+   connection, the check cannot see the server: confirm it is up with `rod/linux-host.sh status`
+   as its owner.
 
 Never copy the Mac's env file or state folder: `OVIS_TAILSCALE_SERVE_ONLY` lets a serve request
 with no login in as the owner when no token is set, `OVIS_ROD_DESK_SSH` would reach the Mac from
