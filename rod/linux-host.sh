@@ -10,6 +10,8 @@
 #                                     there is none yet; prints the unit for root to install
 #   rod/linux-host.sh unit            print the systemd unit for this user
 #   rod/linux-host.sh status          the server's own health answer on its loopback port
+#   rod/linux-host.sh pair            a six-digit code that pairs one phone, good for ten minutes;
+#                                     the token stays in this script, the code goes nowhere but here
 #
 # Where things live, all under the user's home and readable by nobody else:
 #   ~/.local/share/ovis-rod   the checkout the service runs (no file in it writable by another user)
@@ -136,6 +138,7 @@ prepare() {
 	git -C "$checkout" checkout --quiet --detach "origin/$ref" 2>/dev/null || git -C "$checkout" checkout --quiet --detach "$ref"
 	say "checkout at $ref ($(git -C "$checkout" rev-parse --short HEAD))"
 	cd "$checkout"
+	umask 022
 	sh scripts/with-bun.sh install --frozen-lockfile
 	sh scripts/with-bun.sh run build
 	# a release tag has a checked Rust PTY host; a branch has none, and terminals use Node from PATH
@@ -146,10 +149,41 @@ prepare() {
 			say "no Rust PTY host for $ref and no cargo: terminals run on Node if it is on PATH, else they are mirrored"
 		fi
 	fi
+	# packages ship files that their group or anyone may write; here nobody but this user may
+	chmod -R go-w "$checkout"
 	owned
 	settings
 	say "ready. The unit for root to install:"
 	unit
+}
+
+# A pairing code for one phone. The token is read here and handed to curl on its standard input,
+# so it is on no command line and in no output; only the code and its end are printed.
+pair() {
+	[ -f "$config/env" ] || die "no settings in $config/env: run prepare first"
+	alone "$config/env"
+	grep -Eq '^OVIS_TOKEN=.{32,}$' "$config/env" || die "no OVIS_TOKEN of 32 characters or more in $config/env: run prepare first"
+	at=$(sed -n 's/^PORT=//p' "$config/env" | tail -n 1)
+	answer=$(
+		token=$(sed -n 's/^OVIS_TOKEN=//p' "$config/env" | tail -n 1)
+		printf 'header = "Authorization: Bearer %s"\n' "$token" |
+			curl -sS --max-time 10 -K - -X POST -H 'x-herdr-machine: 1' -H 'content-type: application/json' --data '{}' "http://127.0.0.1:${at:-$port}/api/devices/pair/start"
+	) || die "Ovis did not answer on port ${at:-$port}: is the service running? (systemctl status ovis-rod)"
+	printf '%s' "$answer" | python3 -c '
+import json, sys
+from datetime import datetime
+try:
+    answer = json.load(sys.stdin)
+except ValueError:
+    sys.exit("rod linux-host: Ovis gave no pairing code")
+code = answer.get("code")
+if not isinstance(code, str) or len(code) != 6 or not code.isdigit():
+    error = answer.get("error") or {}
+    sys.exit("rod linux-host: no pairing code: %s" % (error.get("message") or error.get("code") or "unexpected answer"))
+until = datetime.fromisoformat(answer["expires_at"].replace("Z", "+00:00")).astimezone()
+print("Pairing code: %s %s" % (code[:3], code[3:]))
+print("Type it in the Ovis app on the phone before %s. It works once." % until.strftime("%H:%M %Z"))
+'
 }
 
 # a copy another user can change is refused, though one written to skip this check would not be
@@ -159,5 +193,6 @@ case "${1:-}" in
 	prepare) shift; prepare "$@" ;;
 	unit) unit ;;
 	status) curl -sS "http://127.0.0.1:$port/api/health"; echo ;;
-	*) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+	pair) pair ;;
+	*) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
