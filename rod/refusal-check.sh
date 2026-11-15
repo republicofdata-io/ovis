@@ -5,13 +5,14 @@
 #
 #   rod/refusal-check.sh http://127.0.0.1:7317 https://<this machine's tailnet name>
 #
-# Every try must be refused: 401 or 403 from Ovis, or no connection at all (a firewall rule on the
-# port). It holds no token and redeems no pairing code, so it changes nothing on the server but
-# one wrong-token try per address. Health answers anyone: it is read to show the server is up and
-# asks for a token.
+# Every try must be refused: 401 from Ovis's access check, or the connection refused or reset (a
+# firewall rule on the port). Anything else fails: a 403 comes after the access check let the
+# request in, and a name that does not resolve, a TLS error or a timeout tested nothing. It holds
+# no token and redeems no pairing code, so it changes nothing on the server but one wrong-token try
+# per address. Health answers anyone: it is read to show the server is up and asks for a token.
 set -u
 
-[ "$#" -gt 0 ] || { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ "$#" -gt 0 ] || { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 command -v curl >/dev/null || { echo "refusal-check: curl is not on PATH" >&2; exit 2; }
 
 failed=0
@@ -19,17 +20,24 @@ pane=w1:p1
 # what tailscale serve would state for this machine's owner, read here so the forgery is the real one
 status=$(tailscale status --json 2>/dev/null) || status=""
 field() { printf '%s' "$status" | python3 -c "import json,sys; d=json.load(sys.stdin); s=d['Self']; print($1)" 2>/dev/null; }
-login=$(field 'd["User"][str(s["UserID"])]["LoginName"]'); login=${login:-owner@example.com}
-node=$(field 's["DNSName"].rstrip(".")'); node=${node:-node.example.ts.net}
+login=$(field 'd["User"][str(s["UserID"])]["LoginName"]')
+node=$(field 's["DNSName"].rstrip(".")')
 address=$(field 's["TailscaleIPs"][0]')
+# a forgery of some other login would pass for the wrong reason
+[ -n "$login" ] && [ -n "$node" ] || { echo "refusal-check: could not read this machine's Tailscale login and name (tailscale status --json, python3); nothing tested" >&2; exit 2; }
 
-# $1 what is tried, then curl's own arguments; refused is 401, 403 or no connection
+# $1 what is tried, then curl's own arguments. Any answer but 401 got past the access check (a
+# 101 holds the stream open until the time limit, and still counts); no answer is a refusal only
+# when curl says the connection was refused or reset (exit 7).
 try() {
 	what=$1; shift
-	code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$@" 2>/dev/null) || code=${code:-000}
+	code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$@" 2>/dev/null)
+	rc=$?
 	case "$code" in
-		401|403) echo "refused  $code  $what" ;;
-		000) echo "refused  no connection  $what" ;;
+		401) echo "refused  401  $what" ;;
+		""|000)
+			if [ "$rc" = 7 ]; then echo "refused  no connection  $what"
+			else echo "UNTESTED curl exit $rc  $what"; failed=1; fi ;;
 		*) echo "LET IN   $code  $what"; failed=1 ;;
 	esac
 }
@@ -47,11 +55,13 @@ printf 'header = "%s"\n' "tailscale-user-login: $login" "x-forwarded-for: 100.10
 for base in "$@"; do
 	base=${base%/}
 	echo "== $base, as $(id -un)"
-	health=$(curl -sS --max-time 10 "$base/api/health?scope=bridge" 2>/dev/null) || health=""
-	case "$health" in
-		*'"required":true'*) echo "health   up, asks for a token" ;;
-		"") echo "health   no answer" ;;
-		*) echo "TOKEN?   the server does not say it asks for a token: $(printf '%s' "$health" | head -c 200)"; failed=1 ;;
+	health=$(curl -sS --max-time 10 "$base/api/health?scope=bridge" 2>/dev/null)
+	rc=$?
+	case "$rc:$health" in
+		0:*'"required":true'*) echo "health   up, asks for a token" ;;
+		7:*) echo "health   connection refused: a firewall rule, or nothing listening (check the server is up as its owner)" ;;
+		0:*) echo "TOKEN?   the server does not say it asks for a token: $(printf '%s' "$health" | head -c 200)"; failed=1 ;;
+		*) echo "UNTESTED curl exit $rc reaching $base: check the address"; failed=1 ;;
 	esac
 	try "read the panes" "$base/api/session"
 	try "read a pane's screen" "$base/api/pane/read?pane_id=$pane"
@@ -76,13 +86,14 @@ done
 if [ -n "$address" ]; then
 	port=$(printf '%s\n' "$@" | sed -n 's#^http://127\.0\.0\.1:\([0-9]*\).*#\1#p' | head -n 1)
 	if [ -n "$port" ]; then
-		if curl -sS -o /dev/null --max-time 5 "http://$address:$port/api/health" 2>/dev/null; then
-			echo "LET IN   the tailnet address answers on port $port"; failed=1
-		else
-			echo "refused  no connection  port $port on the tailnet address"
-		fi
+		curl -sS -o /dev/null --max-time 5 "http://$address:$port/api/health" 2>/dev/null
+		case $? in
+			0|22) echo "LET IN   the tailnet address answers on port $port"; failed=1 ;;
+			7) echo "refused  no connection  port $port on the tailnet address" ;;
+			*) echo "UNTESTED port $port on the tailnet address"; failed=1 ;;
+		esac
 	fi
 fi
 
-if [ "$failed" = 0 ]; then echo "refusal-check: every try was refused"; else echo "refusal-check: a request got in" >&2; fi
+if [ "$failed" = 0 ]; then echo "refusal-check: every try was refused"; else echo "refusal-check: a request got in, or a try could not be made" >&2; fi
 exit "$failed"

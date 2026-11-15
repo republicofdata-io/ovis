@@ -91,21 +91,26 @@ check).
 
 1. **As that user**: `rod/linux-host.sh prepare` fetches `rod` into `~/.local/share/ovis-rod`,
    builds it, writes `~/.config/ovis-rod/env` (folder 700, file 600) with a new token, and prints
-   the systemd unit. It refuses a checkout, bun or herdr that another user can change, since the
-   service runs them as this user. Nothing in the unit is secret; the token stays in the env file.
+   the systemd unit. Run the script from a fresh clone at a reviewed commit, or later from
+   `~/.local/share/ovis-rod` itself, never from a copy another user can write: it runs as this
+   user. It refuses a checkout, bun or herdr that another user can change, since the service runs
+   them as this user. Nothing in the unit is secret; the token stays in the env file.
 2. **As root**: install the unit as `/etc/systemd/system/ovis-rod.service` and enable it; it starts
    at boot, and refuses to start without a token. Publish it with
    `tailscale serve --bg --https=443 http://127.0.0.1:7317`. Optionally, a firewall rule refuses the
    agents' user any connection to 443 and 7317 on this machine (nftables, in an `output` chain:
    `oifname "lo" meta skuid "<agents' user>" tcp dport { 443, 7317 } reject with tcp reset`).
 3. **The tailnet policy**: the phone may reach this machine on tcp 443, nothing else.
-4. **Pair the phone**: as that user, start a code with the token, without putting it on a command line:
-   `set -a; . ~/.config/ovis-rod/env; set +a; printf 'header = "Authorization: Bearer %s"\n' "$OVIS_TOKEN" | curl -sS -K - -X POST -H 'x-herdr-machine: 1' http://127.0.0.1:7317/api/devices/pair/start`.
+4. **Pair the phone**: as that user, start a code with the token, without putting it on a command
+   line or leaving it in the shell:
+   `( set -a; . ~/.config/ovis-rod/env; printf 'header = "Authorization: Bearer %s"\n' "$OVIS_TOKEN" | curl -sS -K - -X POST -H 'x-herdr-machine: 1' http://127.0.0.1:7317/api/devices/pair/start )`.
+   The code lasts ten minutes.
    Open `https://<machine>/` on the phone, add it to the Home Screen, and type the six digits in
    that app (it keeps its own cookies). Turn alerts on there and off in the Mac's app, so each
    alert comes once.
 5. **Check it**: as the agents' user, `rod/refusal-check.sh http://127.0.0.1:7317 https://<machine>`
-   must print `every try was refused`.
+   must print `every try was refused`. Only a 401 or a refused connection counts; any other
+   answer, or a try that could not be made, fails it.
 
 Never copy the Mac's env file or state folder: `OVIS_TAILSCALE_SERVE_ONLY` lets a serve request
 with no login in as the owner when no token is set, `OVIS_ROD_DESK_SSH` would reach the Mac from

@@ -1,7 +1,9 @@
 #!/bin/sh
 # Ovis on an always-on Linux machine, so a phone reaches its herdr with the Mac asleep or off.
 # Run as the user whose herdr Ovis serves (never root); the service itself is installed by root
-# from the unit this prints. See "Ovis on a Linux machine" in rod/README.md.
+# from the unit this prints. See "Ovis on a Linux machine" in rod/README.md. Run it only from a
+# fresh clone at a reviewed commit, or from the checkout it makes: a copy another user can write
+# would run their code as this user.
 #
 #   rod/linux-host.sh prepare [ref]   fetch the fork at ref (default rod) into the checkout, build
 #                                     it, and write the settings file with a new access token if
@@ -27,18 +29,28 @@ state="$HOME/.local/state/ovis-rod"
 source=https://github.com/republicofdata-io/ovis.git
 port=7317
 
-# The programs the service runs, by absolute path: a bun or herdr found on a PATH another user can
-# write would run as this user.
+# $1 a path the service runs or reads as this user: it and every folder above it must be this
+# user's or root's and writable by nobody else, or another user could swap it. A sticky folder
+# (/tmp) lets nobody replace another user's entry, so it passes.
+alone() {
+	path=$1
+	while :; do
+		case "$(stat -c %U "$path")" in "$user"|root) ;; *) die "$path is not $user's or root's" ;; esac
+		case "$(stat -c %A "$path")" in *t|*T) ;; ?????w????|????????w?) die "$path is writable by another user" ;; esac
+		[ "$path" = / ] && break
+		path=$(dirname "$path")
+	done
+}
+
+# The programs the service runs, resolved to the files themselves: the unit names those, so no link
+# or PATH entry another user can change stands between the service and what it runs.
 programs() {
 	bun=$(PATH="$HOME/.bun/bin:$HOME/.local/bin:$PATH" command -v bun) || die "bun is not installed for $user (curl -fsSL https://bun.sh/install | bash)"
 	herdr=$(PATH="$HOME/.local/bin:$PATH" command -v herdr) || die "herdr is not on $user's PATH"
-	for file in "$bun" "$herdr"; do
-		file=$(readlink -f "$file")
-		for path in "$file" "$(dirname "$file")"; do
-			case "$(stat -c %U "$path")" in "$user"|root) ;; *) die "$path is not $user's or root's" ;; esac
-			case "$(stat -c %A "$path")" in ?????w????|????????w?) die "$path is writable by another user" ;; esac
-		done
-	done
+	bun=$(readlink -f "$bun")
+	herdr=$(readlink -f "$herdr")
+	alone "$bun"
+	alone "$herdr"
 }
 
 unit() {
@@ -61,7 +73,7 @@ Environment=OVIS_HERDR_BIN=$herdr
 EnvironmentFile=$config/env
 WorkingDirectory=$checkout
 # without a token any process on this machine could drive the panes, so it does not start
-ExecStartPre=/bin/sh -c 'test -n "\$\${OVIS_TOKEN}" || { echo "OVIS_TOKEN is not set in $config/env" >&2; exit 1; }'
+ExecStartPre=/bin/sh -c 'test "\$\${#OVIS_TOKEN}" -ge 32 || { echo "OVIS_TOKEN in $config/env is missing or shorter than 32 characters" >&2; exit 1; }'
 ExecStart=$bun run server/managed.ts
 Restart=on-failure
 RestartSec=5
@@ -74,14 +86,12 @@ EOF
 }
 
 # A file another user can change would run as this user (decision: no process of this user runs
-# a file another can write), so the checkout and the folders above it must be this user's alone.
+# a file another can write), so the checkout, what its links point at, and the folders above it
+# must be this user's alone.
 owned() {
-	bad=$(find "$checkout" \( ! -user "$user" -o -perm /022 \) ! -type l -print -quit 2>/dev/null)
+	bad=$(find -L "$checkout" \( ! -user "$user" -o -perm /022 \) -print -quit) || die "could not check every file in $checkout"
 	[ -z "$bad" ] || die "$bad is writable by another user or not $user's; fix it before the service runs this checkout"
-	for dir in "$HOME" "$HOME/.local" "$HOME/.local/share"; do
-		[ "$(stat -c %U "$dir")" = "$user" ] || die "$dir is not $user's"
-		case "$(stat -c %A "$dir")" in ?????w????|????????w?) die "$dir is writable by another user" ;; esac
-	done
+	alone "$checkout"
 }
 
 settings() {
@@ -90,7 +100,7 @@ settings() {
 	chmod 700 "$config" "$state"
 	if [ -f "$config/env" ]; then
 		chmod 600 "$config/env"
-		grep -q '^OVIS_TOKEN=..*' "$config/env" || die "$config/env has no OVIS_TOKEN: without one, any process on this machine can drive the panes"
+		grep -Eq '^OVIS_TOKEN=.{32,}$' "$config/env" || die "$config/env has no OVIS_TOKEN of 32 characters or more: without one, any process on this machine can drive the panes"
 		say "settings kept in $config/env"
 		return
 	fi
@@ -139,9 +149,12 @@ prepare() {
 	unit
 }
 
+# a copy another user can change is refused, though one written to skip this check would not be
+alone "$(readlink -f "$0")"
+
 case "${1:-}" in
 	prepare) shift; prepare "$@" ;;
 	unit) unit ;;
 	status) curl -sS "http://127.0.0.1:$port/api/health"; echo ;;
-	*) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+	*) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

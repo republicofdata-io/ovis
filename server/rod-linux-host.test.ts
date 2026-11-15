@@ -79,4 +79,22 @@ describe("an always-on Linux machine shared with other users: OVIS_TOKEN turns t
       await session.body?.cancel();
     });
   }
+
+  // the control: without the token the same machine lets these tries in, so the 401s above are the
+  // token's doing, and the forged headers are the shape the server reads as Tailscale's
+  it("without a token, lets a plain local request and the owner's forged login in", async () => {
+    const open = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(state, "open"), tailscaleOwner: OWNER, tailscaleServeOnly: false, tailnet });
+    try {
+      const at = async (headers: Record<string, string>) => ((await (await fetch(`http://127.0.0.1:${open.port}/api/health?scope=bridge`, { headers })).json()) as { auth: { authenticated: boolean; via?: string } }).auth;
+      expect(await at({})).toMatchObject({ authenticated: true, via: "local" });
+      expect(await at(serve)).toMatchObject({ authenticated: true, via: "tailscale" });
+      for (const headers of [{}, serve]) {
+        const response = await fetch(`http://127.0.0.1:${open.port}/api/pane/input`, { method: "POST", headers: { ...cli, ...headers }, body: line });
+        expect(response.status).not.toBe(401);
+        await response.body?.cancel();
+      }
+    } finally {
+      open.stop();
+    }
+  });
 });
